@@ -2,6 +2,8 @@
 
 Assigned to: William.
 
+Stack: Python and FastAPI. Start in `backend/main.py`; dependencies belong in `backend/requirements.txt`.
+
 ## Context for your AI
 
 Read `docs/genie_context.md` and `docs/integration_contract.md` first. You own the backend that checks public listing details and produces evidence supported service statuses. Another person and their AI independently own the Chrome extension. This is a two person hackathon demo due September 20, 2026 at 5 PM.
