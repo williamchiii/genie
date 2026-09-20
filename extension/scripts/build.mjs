@@ -8,6 +8,8 @@ const ctx = await context({
   entryPoints: {
     background: "src/background/index.ts",
     content: "src/content/index.ts",
+    search: "src/content/search.ts",
+    searchIntercept: "src/content/searchIntercept.ts",
     popup: "src/popup/index.tsx",
   },
   outdir: "dist",
