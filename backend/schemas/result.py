@@ -10,6 +10,11 @@ class Source(BaseModel):
     retrievedAt: AwareDatetime
 
 
+class SearchAttribution(BaseModel):
+    renderedContent: str
+    queries: list[str]
+
+
 class CheckResult(BaseModel):
     listingId: str
     mode: Literal["live", "mock"] = "live"
@@ -20,6 +25,7 @@ class CheckResult(BaseModel):
     replacementUrl: HttpUrl | None = None
     sources: list[Source] = Field(default_factory=list)
     cached: bool = False
+    searchAttribution: SearchAttribution | None = None
 
     @model_validator(mode="after")
     def require_evidence(self):

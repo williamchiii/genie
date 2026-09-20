@@ -1,6 +1,6 @@
 # Shared integration contract
 
-This is the single source of truth for the planned API and mock fixtures. The bare framework does not implement these endpoints or behaviors yet. Both components must use this format; the earlier fixture field names are retired.
+This is the single source of truth for the planned API and mock fixtures. The backend implements link checks and a Gemini verification pipeline. Live Gemini verification requires model access and quota. The frontend behavior below remains the integration target. Both components must use this format; the earlier fixture field names are retired.
 
 ## Core interaction
 
@@ -64,7 +64,7 @@ All fields are present. `listingId` and `name` are nonempty strings. Other value
 }
 ```
 
-This fictional example illustrates the schema, not a real finding. All fields are required.
+This fictional example illustrates the schema, not a real finding. All fields shown above are required. The optional additive field `searchAttribution` is described below.
 
 1. `status`: exactly `active`, `closed`, or `uncertain`. UI labels: Active, Confirmed closed, Uncertain.
 2. `linkState`: exactly `working`, `redirected`, `broken`, `stale`, or `unknown`, describing the original listing URL. `stale` means retrieved content explicitly shows that the destination no longer represents the listed service, such as a superseded service page or unrelated domain content. `broken` means a confirmed failure such as a 404 or 410, not a transient timeout or blocked fetch. Those unresolved cases use `unknown`. A working redirect to the correct service uses `redirected` and does not need repair. Link health is separate from service status.
@@ -76,6 +76,23 @@ This fictional example illustrates the schema, not a real finding. All fields ar
 8. `mode`: exactly `live` or `mock`. This is a data origin marker, not a service status. The UI must visibly label mock results “Demo data, not a live check.” Never silently fall back to mock mode after a live failure.
 
 For live results, Active and Confirmed closed require supporting sources and a confident match to the specific service and location. Confirmed closed additionally requires explicit permanent closure evidence. Weak or conflicting evidence yields Uncertain.
+
+## Search attribution
+
+Responses may also contain `searchAttribution`, defaulting to null. Older fixtures may omit it. When Google Search returns attribution, the shape is:
+
+```json
+{
+  "searchAttribution": {
+    "renderedContent": "<div>Provider supplied search attribution</div>",
+    "queries": ["Example Community Pantry current services"]
+  }
+}
+```
+
+This is provider metadata, not retrieved evidence and not a service classification. Keep the Google Search attribution with the result. The extension owner must implement its display alongside grounded results according to Google's current display requirements. Treat the HTML as untrusted provider content and isolate it in a sandboxed frame with scripts and same origin access disabled, rather than inserting it into the Resource Map DOM. Source excerpts remain exact snippets from independently fetched pages; model summaries and search suggestions are not quotations.
+
+The backend uses search to discover source URLs, fetches those destinations with the same public network checks as original links, and asks Gemini to assess the retrieved text in a separate structured request. A returned replacement is the fetched final URL of a cited official service page, not an arbitrary URL from model output.
 
 ## Extension behavior
 
@@ -92,6 +109,10 @@ Before applying a result, confirm that the card still represents the submitted l
 Keep the original URL, replacement URL, reason, source links, and check time accessible in the listing's evidence area. Offer “Use original link” to undo the local change for that listing during the current page session. Do not automatically navigate the user. If the site rerenders a card, preserve the original URL and avoid treating Genie changes as fresh input or triggering request loops.
 
 If a later check cannot support an already applied repair, restore the original destination and explain the new result. Cached live results may apply within the agreed cache lifetime and must retain their original check time. No backend response directly modifies FCI records.
+
+### Listing indicators
+
+Use red for Confirmed closed, yellow for an Active service whose broken or stale link has a verified replacement, and green for an Active service with a working original link. A correctly redirected link may be green only when its destination matches the verified service. Uncertain remains neutral, including a broken link without a verified repair. Color must be accompanied by readable status text.
 
 ## Mock fixtures
 

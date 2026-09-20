@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = Field(default=1800, ge=1)
     cache_max_entries: int = Field(default=256, ge=1, le=10000)
     gemini_enabled: bool = True
-    gemini_model: str = Field(default="gemini-2.5-flash", pattern=r"^[a-zA-Z0-9._-]+$")
+    gemini_model: str = Field(default="gemini-3.5-flash-lite", pattern=r"^[a-zA-Z0-9._-]+$")
     gemini_timeout_seconds: float = Field(default=10, gt=0, le=20)
     check_timeout_seconds: float = Field(default=20, gt=0, le=20)
     evidence_max_pages: int = Field(default=3, ge=1, le=5)

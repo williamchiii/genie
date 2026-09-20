@@ -15,6 +15,7 @@ from main import app
 from schemas.listing import ListingRequest
 from schemas.result import CheckResult
 from services import checks
+from services.gemini import Verification, fallback
 from services.link_checker import LinkCheck, check_link, public_address, UnsafeDestination
 
 FIXTURE = json.loads((Path(__file__).resolve().parents[2] / 'docs/fixtures/s4p-listing.json').read_text())
@@ -106,6 +107,11 @@ class CacheTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         checks._cache.clear()
         self.listing = ListingRequest.model_validate(FIXTURE)
+        async def verification(listing, link):
+            return Verification(fallback(listing, link, "Test evidence stage."), cacheable=link.state != "unknown")
+        self.verifier = patch('services.checks.verify_listing', side_effect=verification)
+        self.verifier.start()
+        self.addCleanup(self.verifier.stop)
 
     async def test_cache_preserves_check_time_and_echoes_new_id(self):
         observation = LinkCheck('broken', 'HTTP 404 does not prove closure.', datetime.now(timezone.utc))
@@ -142,6 +148,9 @@ class CacheTests(unittest.IsolatedAsyncioTestCase):
 class ApiTests(unittest.TestCase):
     def setUp(self):
         checks._cache.clear()
+        self.verifier = patch('services.checks.verify_listing', side_effect=lambda listing, link: Verification(fallback(listing, link, "Test evidence stage.")))
+        self.verifier.start()
+        self.addCleanup(self.verifier.stop)
 
     def test_api_reports_link_failure_without_claiming_service_closed(self):
         observation = LinkCheck('broken', 'HTTP 404 does not prove closure.', datetime.now(timezone.utc))
