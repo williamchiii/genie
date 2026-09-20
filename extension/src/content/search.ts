@@ -132,7 +132,7 @@ function badgeLabel(state: "checking" | CheckReply): string {
   if (result.status === "closed") return "Confirmed closed";
   if (result.status === "active" && result.replacementUrl) return "Updated link by Genie";
   if (result.status === "active") return "Active";
-  if (result.addressMismatch) return "Check address";
+  if (result.addressMismatch) return "Address mismatch";
   return "Uncertain";
 }
 

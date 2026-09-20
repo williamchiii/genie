@@ -1,5 +1,6 @@
 const API_URL = "http://127.0.0.1:8787/api/check";
 const REQUEST_TIMEOUT_MS = 25_000;
+const SHARED_RESULT_TTL_MS = 30 * 60 * 1000;
 
 interface ListingRequest {
   listingId: string;
@@ -33,6 +34,32 @@ export interface CheckResult {
 
 type CheckReply = { ok: true; result: CheckResult } | { ok: false; message: string };
 
+interface StoredResult {
+  result: CheckResult;
+  savedAt: number;
+}
+
+function storageKey(listingId: string): string {
+  return `genie-result:${listingId}`;
+}
+
+async function sharedResult(listingId: string): Promise<CheckResult | null> {
+  const key = storageKey(listingId);
+  const values = await chrome.storage.session.get(key);
+  const stored = values[key] as StoredResult | undefined;
+  if (!stored || !isCheckResult(stored.result) || Date.now() - stored.savedAt >= SHARED_RESULT_TTL_MS) {
+    if (stored) await chrome.storage.session.remove(key);
+    return null;
+  }
+  return stored.result;
+}
+
+async function saveSharedResult(result: CheckResult): Promise<void> {
+  await chrome.storage.session.set({
+    [storageKey(result.listingId)]: { result, savedAt: Date.now() } satisfies StoredResult,
+  });
+}
+
 function isHttpUrl(value: unknown): value is string {
   if (typeof value !== "string") return false;
   try {
@@ -63,6 +90,12 @@ function isCheckResult(value: unknown): value is CheckResult {
 }
 
 async function checkListing(listing: ListingRequest): Promise<CheckReply> {
+  try {
+    const previous = await sharedResult(listing.listingId);
+    if (previous) return { ok: true, result: previous };
+  } catch {
+    // Session storage is an optimization. A storage error must not block a check.
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -76,6 +109,11 @@ async function checkListing(listing: ListingRequest): Promise<CheckReply> {
     const result: unknown = await response.json();
     if (!isCheckResult(result) || result.listingId !== listing.listingId) {
       return { ok: false, message: "Could not complete this check." };
+    }
+    try {
+      await saveSharedResult(result);
+    } catch {
+      // The live response remains valid if session storage is unavailable.
     }
     return { ok: true, result };
   } catch {
