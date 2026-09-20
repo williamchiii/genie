@@ -27,6 +27,9 @@ type CheckReply = { ok: true; result: CheckResult } | { ok: false; message: stri
 let fingerprint = "";
 let host: HTMLElement | null = null;
 let websiteLink: HTMLAnchorElement | null = null;
+let websiteHeading: Element | null = null;
+let listingTitle: Element | null = null;
+let replacementLink: HTMLAnchorElement | null = null;
 let requestVersion = 0;
 const completed = new Map<string, CheckResult>();
 const restored = new Set<string>();
@@ -53,6 +56,20 @@ function linkFor(right: Element): HTMLAnchorElement | null {
   return candidate instanceof HTMLAnchorElement ? candidate : null;
 }
 
+function headingFor(right: Element): Element | null {
+  const label = Array.from(right.querySelectorAll("p"))
+    .find(node => node.textContent?.trim() === "Website");
+  return label?.parentElement ?? null;
+}
+
+function titleFor(doc: Document): Element | null {
+  const left = doc.querySelector(".resource-page__left");
+  const titleRow = left && Array.from(left.children).find(child =>
+    child.tagName === "DIV" && Array.from(child.querySelectorAll("button"))
+      .some(button => button.textContent?.trim() === "Print"));
+  return titleRow?.querySelector(":scope > p") ?? null;
+}
+
 function originalListing(listing: Listing, link: HTMLAnchorElement | null): Listing {
   const original = link?.dataset.genieOriginalHref;
   return isHttpUrl(original) ? { ...listing, website: original } : listing;
@@ -65,8 +82,13 @@ function keyFor(listing: Listing): string {
 function clearView() {
   host?.remove();
   host = null;
-  websiteLink?.classList.remove("genie-updated-link");
+  websiteLink?.classList.remove("genie-updated-link", "genie-link-unreachable");
+  websiteHeading?.classList.remove("genie-repaired-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
+  listingTitle?.classList.remove("genie-uncertain-title", "genie-closed-title");
   websiteLink = null;
+  websiteHeading = null;
+  listingTitle = null;
+  replacementLink = null;
 }
 
 function formatTime(value: string | null): string {
@@ -84,6 +106,7 @@ function statusText(result: CheckResult): string {
 function statusClass(result: CheckResult): string {
   if (result.status === "closed") return "closed";
   if (hasVerifiedRepair(result)) return "repair";
+  if (result.linkState === "broken" || result.linkState === "stale") return "broken";
   if (result.status === "active" && ["working", "redirected"].includes(result.linkState)) return "active";
   return "uncertain";
 }
@@ -102,33 +125,98 @@ function applyRepair(link: HTMLAnchorElement | null, result: CheckResult, key: s
   const original = link.dataset.genieOriginalHref ?? link.href;
   if (!isHttpUrl(original)) return false;
   link.dataset.genieOriginalHref = original;
-  link.href = result.replacementUrl;
-  link.classList.add("genie-updated-link");
+  const existing = replacementFor(link);
+  const replacement = existing ?? document.createElement("a");
+  replacement.dataset.genieReplacement = "true";
+  replacement.className = "genie-replacement-link";
+  replacement.href = result.replacementUrl;
+  replacement.target = "_blank";
+  replacement.rel = "noopener noreferrer";
+  replacement.textContent = result.replacementUrl;
+  replacement.setAttribute("aria-label", `Updated link by Genie: ${result.replacementUrl}`);
+  if (!existing) link.after(replacement);
+  replacementLink = replacement;
   return true;
 }
 
 function restoreOriginal(link: HTMLAnchorElement | null, key: string) {
   const original = link?.dataset.genieOriginalHref;
   if (!link || !isHttpUrl(original)) return;
-  link.href = original;
-  link.classList.remove("genie-updated-link");
+  replacementFor(link)?.remove();
+  replacementLink = null;
+  link.classList.remove("genie-updated-link", "genie-link-unreachable");
   restored.add(key);
+}
+
+function replacementFor(link: HTMLAnchorElement | null): HTMLAnchorElement | null {
+  const sibling = link?.nextElementSibling;
+  return sibling instanceof HTMLAnchorElement && sibling.dataset.genieReplacement === "true"
+    ? sibling
+    : null;
+}
+
+function applyListingTreatment(result: CheckResult, key: string) {
+  websiteLink?.classList.remove("genie-updated-link", "genie-link-unreachable");
+  websiteHeading?.classList.remove("genie-repaired-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
+  listingTitle?.classList.remove("genie-uncertain-title", "genie-closed-title");
+  if (hasVerifiedRepair(result) && !restored.has(key)) {
+    websiteLink?.classList.add("genie-link-unreachable");
+    websiteHeading?.classList.add("genie-repaired-heading");
+    return;
+  }
+  if (hasVerifiedRepair(result) && restored.has(key)) return;
+  replacementFor(websiteLink)?.remove();
+  replacementLink = null;
+  if (result.status === "closed") {
+    websiteHeading?.classList.add("genie-closed-heading");
+    listingTitle?.classList.add("genie-closed-title");
+    return;
+  }
+  if (result.linkState === "broken" || result.linkState === "stale") {
+    websiteLink?.classList.add("genie-link-unreachable");
+    websiteHeading?.classList.add("genie-unreachable-heading");
+    return;
+  }
+  if (result.status === "uncertain") {
+    websiteHeading?.classList.add("genie-uncertain-heading");
+    listingTitle?.classList.add("genie-uncertain-title");
+  }
+}
+
+function headlineFor(result: CheckResult, key: string): string {
+  if (hasVerifiedRepair(result) && !restored.has(key)) return "✓ Updated link by Genie";
+  if (hasVerifiedRepair(result) && restored.has(key)) return "Original link restored";
+  if (result.status === "closed") return "● Confirmed closed";
+  if (result.linkState === "broken" || result.linkState === "stale") return "⚠ Website link not working";
+  if (result.status === "uncertain") return "⚠ Genie uncertain";
+  return "✓ Service active";
 }
 
 function render(listing: Listing, state: "checking" | CheckReply, key: string, link: HTMLAnchorElement | null): HTMLElement {
   const mount = document.createElement("section");
   mount.id = hostId;
   mount.setAttribute("aria-label", "Genie listing check");
+  mount.append(element("style", `
+    a.genie-link-unreachable { color:#929baa !important; text-decoration:line-through !important; text-decoration-thickness:1px !important; }
+    a.genie-link-unreachable:focus-visible, a.genie-replacement-link:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
+    a.genie-replacement-link { display:block; margin-top:4px; color:#18754b !important; font-weight:600 !important; }
+    .genie-repaired-heading, .genie-unreachable-heading, .genie-uncertain-heading, .genie-closed-heading { align-items:baseline; gap:6px; flex-wrap:wrap; }
+    .genie-repaired-heading::after { content:'✓ GENIE · LINK FIXED'; margin-left:auto; color:#18754b; background:#e6f5eb; padding:3px 9px; border-radius:20px; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-unreachable-heading::after { content:'⚠ LINK NOT WORKING'; margin-left:auto; color:#c9202b; background:#fcebed; padding:3px 9px; border-radius:20px; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-uncertain-heading::after { content:'⚠ GENIE · UNCERTAIN'; margin-left:auto; color:#96600b; background:#fff3da; padding:3px 9px; border-radius:20px; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-closed-heading::after { content:'● GENIE · CLOSED'; margin-left:auto; color:#c9202b; background:#fcebed; padding:3px 9px; border-radius:20px; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-uncertain-title::after { content:'●'; color:#bc7c19; font-size:17px; margin-left:12px; vertical-align:middle; }
+    .genie-closed-title::after { content:'●'; color:#c9202b; font-size:17px; margin-left:12px; vertical-align:middle; }
+  `));
   const root = mount.attachShadow({ mode: "open" });
   const style = element("style", `
     :host { display:block; margin:10px 0 0; color:#172033; font:13px/1.5 system-ui,sans-serif; }
-    article { border-left:3px solid #94a3b8; padding:8px 10px; background:#f8fafc; overflow-wrap:anywhere; }
-    article.active { border-color:#1b8a5a; background:#edf9f2; }
-    article.repair { border-color:#1b8a5a; background:#edf9f2; }
-    article.closed { border-color:#c9202b; background:#fff0f1; }
-    article.uncertain { border-color:#a66a12; background:#fffaf0; }
-    p { margin:4px 0; } .headline { font-weight:700; } .muted { color:#475569; }
-    details { margin-top:7px; } summary { cursor:pointer; color:#334155; }
+    article { padding:5px 0; overflow-wrap:anywhere; }
+    article.active .headline, article.repair .headline { color:#18754b; }
+    article.broken .headline, article.closed .headline { color:#c9202b; }
+    article.uncertain .headline { color:#96600b; }
+    p { margin:0; } .headline { font-weight:700; } .muted { color:#475569; }
+    details { display:block; margin-top:7px; } summary { cursor:pointer; color:#334155; }
     a, button { color:#1d4ed8; } button { border:0; background:none; padding:0; cursor:pointer; text-decoration:underline; font:inherit; }
     button:focus-visible, a:focus-visible, summary:focus-visible { outline:2px solid #1d4ed8; outline-offset:2px; }
     ul { margin:5px 0; padding-left:20px; } .source-title { font-weight:600; }
@@ -145,7 +233,7 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
 
   if (!state.ok) {
     card.className = "uncertain";
-    card.append(element("p", "Uncertain"), element("p", state.message));
+    card.append(element("p", "⚠ Genie uncertain"));
     root.append(style, card);
     return mount;
   }
@@ -153,11 +241,12 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
 
   const repaired = hasVerifiedRepair(result) && !restored.has(key);
   card.className = statusClass(result);
-  const headline = element("p", repaired ? "✓ Updated link by Genie" : statusText(result));
+  const headline = element("p", headlineFor(result, key));
   headline.className = "headline";
-  card.append(headline, element("p", result.reason));
+  card.append(headline);
   const details = element("details");
-  details.append(element("summary", "Genie details"));
+  details.append(element("summary", "View Genie details"));
+  details.append(element("p", result.reason));
   details.append(element("p", `Original link: ${result.linkState}`));
   details.append(element("p", `Checked: ${formatTime(result.checkedAt)}`));
   if (result.cached) details.append(element("p", "Using a recent completed check."));
@@ -173,6 +262,7 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
     restore.type = "button";
     restore.addEventListener("click", () => {
       restoreOriginal(link, key);
+      applyListingTreatment(result, key);
       const next = render(listing, { ok: true, result }, key, link);
       host?.replaceWith(next);
       host = next;
@@ -235,12 +325,18 @@ async function scan() {
   clearView();
   fingerprint = key;
   websiteLink = link;
+  websiteHeading = headingFor(right);
+  listingTitle = titleFor(document);
   const prior = completed.get(key);
-  if (prior) applyRepair(link, prior, key);
+  if (prior) {
+    applyRepair(link, prior, key);
+    applyListingTreatment(prior, key);
+  }
   host = prior
     ? render(listing, { ok: true, result: prior }, key, link)
     : render(listing, "checking", key, link);
-  if (link) link.after(host);
+  const mountAfter = replacementFor(link) ?? link;
+  if (mountAfter) mountAfter.after(host);
   else right.prepend(host);
   if (prior) return;
 
@@ -250,6 +346,10 @@ async function scan() {
   if (response.ok) {
     completed.set(key, response.result);
     applyRepair(link, response.result, key);
+    applyListingTreatment(response.result, key);
+  } else {
+    websiteHeading?.classList.add("genie-uncertain-heading");
+    listingTitle?.classList.add("genie-uncertain-title");
   }
   const next = render(listing, response, key, link);
   host.replaceWith(next);
