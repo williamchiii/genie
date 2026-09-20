@@ -24,6 +24,27 @@
         "content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.floridaresourcemap.org/*",
+        "https://floridaresourcemap.org/*"
+      ],
+      "js": [
+        "searchIntercept.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.floridaresourcemap.org/*",
+        "https://floridaresourcemap.org/*"
+      ],
+      "js": [
+        "search.js"
+      ],
+      "run_at": "document_idle"
     }
   ]
 }

@@ -18,7 +18,7 @@ Start the backend from `backend/` before loading the extension:
 python -m uvicorn main:app --host 127.0.0.1 --port 8787
 ```
 
-Keep `GEMINI_API_KEY` in `backend/.env`; the extension never reads it. The current live integration is limited to detail pages; search-result cards and map popups are outside the current scope.
+Keep `GEMINI_API_KEY` in `backend/.env`; the extension never reads it. Live integration covers resource detail pages and the search results list; map popups remain outside the current scope.
 
 ## Try a live detail-page check
 
@@ -35,9 +35,21 @@ Browser navigation and the live website still require manual verification. The p
 
 ## Live result safety
 
-The content script automatically sends each resource-detail listing to the local backend. Keep `GEMINI_API_KEY` in `backend/.env`; the extension never reads it. If the backend is unavailable, invalid, or exceeds the extension's 25 second request limit, Genie displays **Uncertain** with **Could not complete this check.** The current live integration is limited to resource detail pages; search-result cards and map popups are outside the current scope.
+The content script automatically sends each resource-detail listing to the local backend. Keep `GEMINI_API_KEY` in `backend/.env`; the extension never reads it. If the backend is unavailable, invalid, or exceeds the extension's 25 second request limit, Genie displays **Uncertain** with **Could not complete this check.** Map popups remain outside the current scope.
 
 The extension only applies a replacement when the response is live, Active, has a broken or stale original link, a check time, supporting sources, and an HTTP(S) replacement URL. It stores the original URL on the page and uses it for later checks, so its own local change cannot cause a request loop. Source text is rendered as text. Provider-supplied Google Search attribution HTML, when returned, is isolated in a sandboxed iframe with scripts and same-origin access disabled.
+
+## Live search results list
+
+The results list (`/search`) also gets automatic checks now, limited to the cards currently rendered on the page (the page size chosen in "Resources per page"). Changing page or filters re-scans the newly rendered cards. Checks fire top of the page first.
+
+List cards render no website, phone, or ID in their markup, so this does not scrape the DOM for listing data. Instead, `searchIntercept.js` runs in the page's own JS context (`world: "MAIN"`, `document_start`) and observes the response of the page's own `GET /api/resource/search` call, exactly as the app already made it (with its live filters, geolocation, and paging), then hands the parsed results to `search.js` (the normal isolated content script) over `window.postMessage`. This avoids reconstructing that request ourselves, which would risk drifting from the filters the user actually applied. No extra network request is made against floridaresourcemap.org.
+
+`search.js` maps each result's `_id`, `name`, `website`, `phone`, `address`, and `services`/`tags` fields to the same request shape the detail page uses, sends one `/api/check` per visible card, and renders a small colored dot and label next to the card's title plus an expandable **Genie details** line (reason, link state, check time, sources). Cards are matched to results by list position, since the API's result order matches the rendered order.
+
+Indicator colors, per the integration contract: green (Active, working link), purple (Active, verified repair applied — "Updated link by Genie"), yellow (Uncertain — this is the neutral state, covering unknown link, missing/conflicting evidence, or a mismatched address/phone/service), red (Confirmed closed only, never inferred from a dead link alone).
+
+This fires one real backend check per visible card, so a full page load spends Gemini quota for every card shown, not just one.
 
 ## Extraction checks
 

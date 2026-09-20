@@ -8,6 +8,8 @@ Genie automatically checks a rendered listing's original website. If it is broke
 
 An old visual design or undated page is not enough to declare a website stale. A replacement must resolve to a working page for the same service and location. Prefer a specific service page over a general homepage. Gemini discovers and compares candidates using retrieved or grounded sources; an unsupported model suggestion is not a verified replacement.
 
+Live checks also run on the search results list, one per card currently rendered on the page (the chosen page size), checked top of the page first. The list has no website button to replace, so Genie shows only the status indicator and evidence there; link replacement remains a detail-page behavior. Map popups remain out of scope.
+
 ## Ownership
 
 William owns `backend/`, backend dependency files and tests, `docs/backend_setup.md`, this contract, and `docs/genie_context.md`.
@@ -112,7 +114,15 @@ If a later check cannot support an already applied repair, restore the original 
 
 ### Listing indicators
 
-Use red for Confirmed closed and green with a check mark for an Active service whose original link has a verified replacement. Use green for an Active service with a working original link. A correctly redirected link may be green only when its destination matches the verified service. Uncertain remains neutral, including a broken link without a verified repair. Color must be accompanied by readable status text.
+Use red only for Confirmed closed, based on explicit permanent closure evidence. Never color a listing red on link health alone: a dead link with no verified replacement is Uncertain, not Confirmed closed. A broken website never proves that the actual service has closed.
+
+Use green for an Active service with a working original link. A correctly redirected link may be green only when its destination matches the verified service.
+
+Use purple for an Active service whose broken or stale link received a verified replacement, labeled "Updated by Genie". This is the only case where Genie has changed what the user sees.
+
+Use yellow for Uncertain, including a broken or unknown link without a verified repair, missing or conflicting evidence, and a mismatched address, phone, or service. Yellow is the neutral state, not a warning that the service is inactive.
+
+Color must be accompanied by readable status text in all cases.
 
 ## Mock fixtures
 
