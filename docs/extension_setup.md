@@ -10,27 +10,34 @@ npm run build
 
 Open `chrome://extensions`, enable Developer mode, choose Load unpacked, and select `extension/dist`.
 
-The content script reads resource detail pages (`/resource/<id>`) and inserts a compact labeled demo below the Website link. Expand **Genie details** to see the explanation and extracted request payload. The toolbar popup still only displays Genie.
+The content script reads resource detail pages (`/resource/<id>`) and automatically asks the local backend to check each newly opened listing. It inserts a compact checking status below the Website link, then shows the live result and expandable evidence. The toolbar popup still only displays Genie.
 
-This is a detail-page mock: no backend request or verification runs, and no link destinations are replaced. S4P's original website appears muted and crossed out with a pale-red **Link unreachable** badge, matching the supplied broken-link reference. It is visibly labeled **Demo data, not a live check.** Service status remains **Uncertain · Not checked** in the expandable details. Other listings show **Link not checked**, without the broken-link styling. The mock is limited to detail pages; search-result cards and map popups are outside the current scope. Live integration and verified link repair remain separate work.
+Start the backend from `backend/` before loading the extension:
 
-## Try the detail-page preview
+```sh
+python -m uvicorn main:app --host 127.0.0.1 --port 8787
+```
 
-1. Build and load the extension, or click Reload on its Chrome extensions card if already loaded.
-2. Refresh an FCI resource detail page. S4P is `https://www.floridaresourcemap.org/resource/6731049ac332c8ac3a1c250f?distance=`.
-3. On S4P, the original Website link should appear crossed out with **Link unreachable** beneath it. The URL remains clickable and its destination is unchanged. Expand **Genie details** and compare the extracted fields with the page. The phone link must not receive the crossed-out styling.
-4. S4P should show `Soup Kitchen, Food Pantry`. The supplied Released listing has no Services section, so `serviceType` should be null; its Food/Education/Legal tags are not substituted.
-5. Open another detail page and check that the card updates without duplicates. Confirm that original website links remain unchanged.
+Keep `GEMINI_API_KEY` in `backend/.env`; the extension never reads it. The current live integration is limited to detail pages; search-result cards and map popups are outside the current scope.
+
+## Try a live detail-page check
+
+1. Start the backend from `backend/` with `python -m uvicorn main:app --host 127.0.0.1 --port 8787`, then confirm `http://127.0.0.1:8787/health` returns `{"ok":true}`.
+2. Build and load the extension, or click Reload on its Chrome extensions card if already loaded.
+3. Refresh an FCI resource detail page. S4P is `https://www.floridaresourcemap.org/resource/6731049ac332c8ac3a1c250f?distance=`.
+4. Genie should show a checking status and then a live result. Expand **Genie details** to inspect the link state, check time, original website, and validated sources. The phone link must not be modified.
+5. A live Active result with a verified repair updates only that listing's Website destination, labels it **Updated link by Genie**, and exposes **Use original link**. Uncertain, closed, mock, failed, and mismatched results leave the original destination unchanged.
+6. Open another detail page and check that the card updates without duplicates. Reloading a repaired detail page preserves the original URL used for future checks.
 
 Extraction is based on user-supplied S4P and Released HTML. The title row is identified by its Print button; contact sections use visible labels. Phone is read from visible text because both samples incorrectly use a website destination for the phone anchor. Missing optional fields are null. The request ID comes from the page URL at runtime; no Released ID is hardcoded. Trust badges and visitor reviews are not extracted.
 
 Browser navigation and the live website still require manual verification. The pasted HTML does not establish how search cards or partial page transitions behave.
 
-## Released uncertain-link mock
+## Live result safety
 
-On the supplied Released detail page (`Released` with website `https://releasedreentry.org`), Genie now previews the uncertain screenshot: an amber title dot, **GENIE · UNCERTAIN** pill beside Website, and a pale-amber explanation panel. The website remains clickable with its original destination. The explanation is a simulated scenario, visibly labeled **Demo data, not a live check.** S4P retains the red broken-link preview. Other listings remain unclassified.
+The content script automatically sends each resource-detail listing to the local backend. Keep `GEMINI_API_KEY` in `backend/.env`; the extension never reads it. If the backend is unavailable, invalid, or exceeds the extension's 25 second request limit, Genie displays **Uncertain** with **Could not complete this check.** The current live integration is limited to resource detail pages; search-result cards and map popups are outside the current scope.
 
-Reload the extension and refresh Released to try it. **Suggest a link** opens a labeled HTTP(S) URL form. **Save in preview** only acknowledges the value locally; it sends nothing and changes no links. **Dismiss** hides the explanation and actions; **Show Genie details** restores them. Refreshing resets this local preview. The previous repaired-link rendering is retained in code, but Released currently selects the uncertain design.
+The extension only applies a replacement when the response is live, Active, has a broken or stale original link, a check time, supporting sources, and an HTTP(S) replacement URL. It stores the original URL on the page and uses it for later checks, so its own local change cannot cause a request loop. Source text is rendered as text. Provider-supplied Google Search attribution HTML, when returned, is isolated in a sandboxed iframe with scripts and same-origin access disabled.
 
 ## Extraction checks
 

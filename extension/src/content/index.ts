@@ -1,264 +1,285 @@
 import { extractDetail, type Listing } from "./extract";
 
-const hostId = "genie-detail-preview";
-let fingerprint = "";
-let host: HTMLElement | null = null;
-let styledLink: Element | null = null;
-let styledHeading: Element | null = null;
-let styledTitle: Element | null = null;
+const hostId = "genie-listing-status";
 
-function clearPreview() {
-  styledLink?.classList.remove("genie-demo-broken-link", "genie-demo-fixed-link");
-  styledHeading?.classList.remove("genie-demo-fixed-heading", "genie-demo-uncertain-heading");
-  styledTitle?.classList.remove("genie-demo-uncertain-title");
-  styledTitle = null;
-  styledHeading = null;
-  styledLink = null;
-  host?.remove();
-  host = null;
+interface Source {
+  title: string;
+  url: string;
+  excerpt: string;
+  retrievedAt: string;
 }
 
-function element<K extends keyof HTMLElementTagNameMap>(tag: K, value: string) {
+interface CheckResult {
+  listingId: string;
+  mode: "live" | "mock";
+  status: "active" | "closed" | "uncertain";
+  reason: string;
+  checkedAt: string | null;
+  linkState: "working" | "redirected" | "broken" | "stale" | "unknown";
+  replacementUrl: string | null;
+  sources: Source[];
+  cached: boolean;
+  searchAttribution?: { renderedContent: string; queries: string[] } | null;
+}
+
+type CheckReply = { ok: true; result: CheckResult } | { ok: false; message: string };
+
+let fingerprint = "";
+let host: HTMLElement | null = null;
+let websiteLink: HTMLAnchorElement | null = null;
+let requestVersion = 0;
+const completed = new Map<string, CheckResult>();
+const restored = new Set<string>();
+
+function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
-  node.textContent = value;
+  if (text !== undefined) node.textContent = text;
   return node;
 }
 
-function render(listing: Listing, broken: boolean, fixed: boolean, uncertain: boolean): HTMLElement {
+function isHttpUrl(value: string | null | undefined): value is string {
+  if (!value) return false;
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+function linkFor(right: Element): HTMLAnchorElement | null {
+  const label = Array.from(right.querySelectorAll("p"))
+    .find(node => node.textContent?.trim() === "Website");
+  const candidate = label?.parentElement?.nextElementSibling;
+  return candidate instanceof HTMLAnchorElement ? candidate : null;
+}
+
+function originalListing(listing: Listing, link: HTMLAnchorElement | null): Listing {
+  const original = link?.dataset.genieOriginalHref;
+  return isHttpUrl(original) ? { ...listing, website: original } : listing;
+}
+
+function keyFor(listing: Listing): string {
+  return JSON.stringify(listing);
+}
+
+function clearView() {
+  host?.remove();
+  host = null;
+  websiteLink?.classList.remove("genie-updated-link");
+  websiteLink = null;
+}
+
+function formatTime(value: string | null): string {
+  if (!value) return "Not checked";
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? "Not checked" : date.toLocaleString();
+}
+
+function statusText(result: CheckResult): string {
+  if (result.status === "active") return "Active";
+  if (result.status === "closed") return "Confirmed closed";
+  return "Uncertain";
+}
+
+function statusClass(result: CheckResult): string {
+  if (result.status === "closed") return "closed";
+  if (result.status === "active" && result.replacementUrl) return "repair";
+  if (result.status === "active" && ["working", "redirected"].includes(result.linkState)) return "active";
+  return "uncertain";
+}
+
+function hasVerifiedRepair(result: CheckResult): result is CheckResult & { replacementUrl: string } {
+  return result.mode === "live"
+    && result.status === "active"
+    && ["broken", "stale"].includes(result.linkState)
+    && isHttpUrl(result.replacementUrl)
+    && result.checkedAt !== null
+    && result.sources.length > 0;
+}
+
+function applyRepair(link: HTMLAnchorElement | null, result: CheckResult, key: string) {
+  if (!link || !hasVerifiedRepair(result) || restored.has(key)) return false;
+  const original = link.dataset.genieOriginalHref ?? link.href;
+  if (!isHttpUrl(original)) return false;
+  link.dataset.genieOriginalHref = original;
+  link.href = result.replacementUrl;
+  link.classList.add("genie-updated-link");
+  return true;
+}
+
+function restoreOriginal(link: HTMLAnchorElement | null, key: string) {
+  const original = link?.dataset.genieOriginalHref;
+  if (!link || !isHttpUrl(original)) return;
+  link.href = original;
+  link.classList.remove("genie-updated-link");
+  restored.add(key);
+}
+
+function render(listing: Listing, state: "checking" | CheckReply, key: string, link: HTMLAnchorElement | null): HTMLElement {
   const mount = document.createElement("section");
   mount.id = hostId;
-  mount.setAttribute("aria-label", "Genie demo preview");
-  // Scope this rule to the single marked website anchor, never the phone link.
-  mount.append(element("style", `
-    a.genie-demo-broken-link {
-      color:#929baa !important; text-decoration:line-through !important;
-      text-decoration-thickness:1px !important;
-    }
-    a.genie-demo-broken-link:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
-    a.genie-demo-fixed-link { color:#2359b8 !important; font-weight:600 !important; }
-    .genie-demo-fixed-heading { align-items:baseline; }
-    .genie-demo-fixed-heading::after { content:'✦ GENIE'; margin-left:auto;
-      color:#6941e8; background:#f1ecff; padding:3px 10px; border-radius:20px;
-      font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
-    .genie-demo-uncertain-heading { align-items:baseline; gap:6px; flex-wrap:wrap; }
-    .genie-demo-uncertain-heading::after { content:'⚠ GENIE · UNCERTAIN'; margin-left:auto;
-      color:#96600b; background:#fff3da; padding:3px 9px; border-radius:20px;
-      font:700 10px/1.5 system-ui,sans-serif; }
-    .genie-demo-uncertain-title::after { content:'●'; color:#bc7c19;
-      font-size:17px; margin-left:12px; vertical-align:middle; }
-  `));
+  mount.setAttribute("aria-label", "Genie listing check");
   const root = mount.attachShadow({ mode: "open" });
   const style = element("style", `
-    :host { display:block; margin:6px 0 0; color:#172033;
-      font:13px/1.5 "Atkinson Hyperlegible",system-ui,sans-serif; }
-    article { overflow-wrap:anywhere; }
-    p { margin:6px 0; }
-    .demo { color:#64748b; font-size:12px; }
-    .status { display:inline-flex; align-items:center; gap:6px; margin:0;
-      color:#475569; background:#f1f5f9; padding:3px 10px; border-radius:6px; }
-    .broken { color:#c9202b; background:#fcebed; }
-    .fixed { color:#18754b; background:#e6f5eb; }
-    .sr-only { position:absolute; width:1px; height:1px; overflow:hidden;
-      clip-path:inset(50%); white-space:nowrap; }
-    .uncertain-box { margin:8px 0; padding:12px; border:1px solid #f5dfb1;
-      border-radius:8px; background:#fffbf2; color:#78613d; }
-    .actions { display:flex; gap:18px; align-items:center; margin:8px 0 12px; }
-    .suggest { border:1px solid #d7deea; padding:4px 10px; border-radius:6px;
-      color:#24334b; background:#fff; text-decoration:none; }
-    .dismiss { color:#64748b; text-decoration:none; }
-    form { margin:12px 0; } label { display:block; margin-bottom:6px; }
-    input { box-sizing:border-box; width:100%; border:1px solid #d7deea;
-      border-radius:6px; padding:8px; margin-bottom:8px; font:inherit; }
-    [hidden] { display:none !important; }
-    .explanation { margin:12px 0; padding:12px; border:1px solid #ede7ff;
-      border-radius:8px; background:#faf8ff; color:#50516c; }
-    .explanation h3 { margin:0 0 6px; font-size:12px; color:#6941e8; }
-    .explanation a, button { color:#6941e8; text-decoration:underline; }
-    button { border:0; background:none; padding:0; cursor:pointer; font:inherit; }
-    button:focus-visible, a:focus-visible { outline:2px solid #6941e8; outline-offset:3px; }
-    .icon { font-size:15px; line-height:1; }
-    summary { cursor:pointer; color:#475569; padding:4px 0; font-size:12px; }
-    summary:focus-visible { outline:2px solid #1d4ed8; outline-offset:3px; }
-    pre { white-space:pre-wrap; overflow-wrap:anywhere; font:12px/1.6 monospace;
-      padding:12px; background:#f1f5f9; border-radius:6px; }
+    :host { display:block; margin:10px 0 0; color:#172033; font:13px/1.5 system-ui,sans-serif; }
+    article { border-left:3px solid #94a3b8; padding:8px 10px; background:#f8fafc; overflow-wrap:anywhere; }
+    article.active { border-color:#1b8a5a; background:#edf9f2; }
+    article.repair { border-color:#b7791f; background:#fff8e7; }
+    article.closed { border-color:#c9202b; background:#fff0f1; }
+    article.uncertain { border-color:#a66a12; background:#fffaf0; }
+    p { margin:4px 0; } .headline { font-weight:700; } .muted { color:#475569; }
+    details { margin-top:7px; } summary { cursor:pointer; color:#334155; }
+    a, button { color:#1d4ed8; } button { border:0; background:none; padding:0; cursor:pointer; text-decoration:underline; font:inherit; }
+    button:focus-visible, a:focus-visible, summary:focus-visible { outline:2px solid #1d4ed8; outline-offset:2px; }
+    ul { margin:5px 0; padding-left:20px; } .source-title { font-weight:600; }
+    blockquote { margin:4px 0 8px; padding-left:8px; border-left:2px solid #cbd5e1; color:#475569; }
+    iframe { display:block; width:100%; min-height:46px; border:0; margin-top:6px; background:white; }
   `);
-  const card = document.createElement("article");
-  const demo = element("p", "Demo data, not a live check.");
-  demo.className = "demo";
-  const status = element("p", "");
-  status.className = broken ? "status broken" : fixed ? "status fixed" : "status";
-  const icon = element("span", broken ? "⚠" : fixed ? "✓" : "?");
-  icon.className = "icon";
-  icon.setAttribute("aria-hidden", "true");
-  status.append(icon, document.createTextNode(broken ? "Link unreachable" : fixed ? "Updated link by Genie" : "Link not checked"));
-  if (uncertain) {
-    status.className = "sr-only";
-    status.textContent = "Genie: Uncertain. Demo data, not a live check.";
+  const card = element("article");
+  if (state === "checking") {
+    card.append(element("p", "Checking Genie…"));
+    card.className = "checking";
+    root.append(style, card);
+    return mount;
   }
-  const details = document.createElement("details");
-  details.append(element("summary", "Genie details"),
-    element("p", broken
-      ? "Broken-link appearance preview. No live check has run. A failed website link does not mean the service is closed."
-      : "No live check has run. Service status is uncertain."),
-    element("p", "Service status: Uncertain · Not checked"),
-    element("pre", JSON.stringify(listing, null, 2)));
-  card.append(status, demo);
-  if (uncertain) {
-    const panel = element("div", "");
-    const explanation = element("p", "The site didn't respond, but Genie couldn't confidently match a replacement, so the original link stays.");
-    explanation.className = "uncertain-box";
-    const actions = element("div", "");
-    actions.className = "actions";
-    const suggest = element("button", "Suggest a link");
-    suggest.type = "button";
-    suggest.className = "suggest";
-    const dismiss = element("button", "Dismiss");
-    dismiss.type = "button";
-    dismiss.className = "dismiss";
-    const reopen = element("button", "Show Genie details");
-    reopen.type = "button";
-    reopen.hidden = true;
-    const form = document.createElement("form");
-    form.hidden = true;
-    const label = element("label", "Suggested website (demo only)");
-    label.htmlFor = "genie-suggestion";
-    const input = document.createElement("input");
-    input.id = "genie-suggestion";
-    input.type = "url";
-    input.required = true;
-    input.placeholder = "https://example.org";
-    const save = element("button", "Save in preview");
-    save.type = "submit";
-    save.className = "suggest";
-    const feedback = element("p", "Suggestions stay in this preview and are not sent or applied.");
-    feedback.setAttribute("role", "status");
-    form.append(label, input, save, feedback);
-    suggest.setAttribute("aria-expanded", "false");
-    suggest.addEventListener("click", () => {
-      form.hidden = !form.hidden;
-      suggest.setAttribute("aria-expanded", String(!form.hidden));
-      if (!form.hidden) input.focus();
-    });
-    input.addEventListener("input", () => input.setCustomValidity(""));
-    form.addEventListener("submit", event => {
-      event.preventDefault();
-      if (!/^https?:\/\//i.test(input.value.trim())) {
-        input.setCustomValidity("Use an http:// or https:// website URL.");
-        input.reportValidity();
-        return;
-      }
-      feedback.textContent = "Saved in this preview only. The original website is unchanged; nothing was submitted.";
-    });
-    dismiss.addEventListener("click", () => {
-      panel.hidden = true;
-      reopen.hidden = false;
-      reopen.focus();
-    });
-    reopen.addEventListener("click", () => {
-      panel.hidden = false;
-      reopen.hidden = true;
-      suggest.focus();
-    });
-    actions.append(suggest, dismiss);
-    panel.append(explanation, actions, form);
-    card.append(panel, reopen);
+
+  if (!state.ok) {
+    card.className = "uncertain";
+    card.append(element("p", "Uncertain"), element("p", state.message));
+    root.append(style, card);
+    return mount;
   }
-  if (fixed && listing.website) {
-    const explanation = element("section", "");
-    explanation.className = "explanation";
-    const heading = element("h3", "ⓘ Why Genie changed this");
-    const message = element("p", "This previews a repaired link for Released. Its existing website is used for the demo; no broken link or replacement has been verified.");
-    const original = element("a", "View original");
+  const result = state.result;
+
+  const repaired = hasVerifiedRepair(result) && !restored.has(key);
+  card.className = statusClass(result);
+  const headline = element("p", repaired ? "Updated link by Genie" : statusText(result));
+  headline.className = "headline";
+  card.append(headline, element("p", result.reason));
+  const details = element("details");
+  details.append(element("summary", "Genie details"));
+  details.append(element("p", `Original link: ${result.linkState}`));
+  details.append(element("p", `Checked: ${formatTime(result.checkedAt)}`));
+  if (result.cached) details.append(element("p", "Using a recent completed check."));
+  if (listing.website) {
+    const original = element("a", "Open original website");
     original.href = listing.website;
     original.target = "_blank";
     original.rel = "noopener noreferrer";
-    const restore = element("button", "Restore");
+    details.append(original);
+  }
+  if (repaired) {
+    const restore = element("button", "Use original link");
     restore.type = "button";
-    restore.setAttribute("aria-label", "Restore original appearance in demo");
-    let restored = false;
     restore.addEventListener("click", () => {
-      restored = !restored;
-      styledLink?.classList.toggle("genie-demo-fixed-link", !restored);
-      styledHeading?.classList.toggle("genie-demo-fixed-heading", !restored);
-      status.className = restored ? "status" : "status fixed";
-      status.textContent = restored ? "Original link · Not checked" : "✓ Updated link by Genie";
-      heading.textContent = restored ? "Original appearance restored" : "ⓘ Why Genie changed this";
-      restore.textContent = restored ? "Preview updated state" : "Restore";
-      restore.setAttribute("aria-label", restored ? "Preview updated link appearance" : "Restore original appearance in demo");
+      restoreOriginal(link, key);
+      const next = render(listing, { ok: true, result }, key, link);
+      host?.replaceWith(next);
+      host = next;
     });
-    explanation.append(heading, message, original, document.createTextNode(" · "), restore);
-    card.append(explanation);
+    details.append(document.createTextNode(" · "), restore);
+  }
+  if (result.sources.length) {
+    const sources = element("ul");
+    for (const source of result.sources) {
+      const item = element("li");
+      const sourceLink = element("a", source.title);
+      sourceLink.href = source.url;
+      sourceLink.target = "_blank";
+      sourceLink.rel = "noopener noreferrer";
+      sourceLink.className = "source-title";
+      item.append(sourceLink, element("blockquote", source.excerpt), element("span", `Retrieved ${formatTime(source.retrievedAt)}`));
+      sources.append(item);
+    }
+    details.append(element("p", "Sources:"), sources);
+  }
+  const attribution = result.searchAttribution;
+  if (attribution?.renderedContent) {
+    details.append(element("p", "Google Search attribution:"));
+    const frame = document.createElement("iframe");
+    frame.title = "Google Search attribution";
+    frame.setAttribute("sandbox", "");
+    // Provider HTML stays inside a scriptless, unique-origin sandbox.
+    frame.srcdoc = attribution.renderedContent;
+    details.append(frame);
   }
   card.append(details);
   root.append(style, card);
   return mount;
 }
 
-function scan() {
-  const listing = extractDetail(document, location.href);
-  if (!listing) {
-    clearPreview();
+function requestCheck(listing: Listing): Promise<CheckReply> {
+  return new Promise(resolve => {
+    chrome.runtime.sendMessage({ type: "GENIE_CHECK", listing }, response => {
+      if (chrome.runtime.lastError || !response || typeof response !== "object") {
+        resolve({ ok: false, message: "Could not complete this check." });
+        return;
+      }
+      resolve(response as CheckReply);
+    });
+  });
+}
+
+async function scan() {
+  const detail = extractDetail(document, location.href);
+  const right = document.querySelector(".resource-page__right");
+  if (!detail || !right) {
+    clearView();
     fingerprint = "";
     return;
   }
-  const next = JSON.stringify(listing);
-  const right = document.querySelector(".resource-page__right")!;
-  const websiteLabel = Array.from(right.querySelectorAll("p"))
-    .find(node => node.textContent?.trim() === "Website");
-  const candidate = websiteLabel?.parentElement?.nextElementSibling;
-  const link = candidate?.matches("a") ? candidate : null;
-  if (fingerprint === next && host?.isConnected && styledLink === link) return;
-  clearPreview();
-  // Explicit S4P mock only: never infer broken status for another organization.
-  const broken = listing.listingId === "6731049ac332c8ac3a1c250f" &&
-    listing.website === "https://www.strivinghome.org/synergy/home-synergy";
-  const uncertain = listing.name === "Released" &&
-    /^https:\/\/releasedreentry\.org\/?$/.test(listing.website ?? "");
-  const fixed = false; // Repaired-link design retained; Released currently previews uncertainty.
-  host = render(listing, broken, fixed, uncertain);
-  styledLink = link;
-  if (broken) link?.classList.add("genie-demo-broken-link");
-  if (fixed) {
-    link?.classList.add("genie-demo-fixed-link");
-    styledHeading = websiteLabel?.parentElement ?? null;
-    styledHeading?.classList.add("genie-demo-fixed-heading");
-  }
-  if (uncertain) {
-    styledHeading = websiteLabel?.parentElement ?? null;
-    styledHeading?.classList.add("genie-demo-uncertain-heading");
-    const left = document.querySelector(".resource-page__left");
-    const titleRow = left && Array.from(left.children).find(child =>
-      child.tagName === "DIV" && Array.from(child.querySelectorAll("button"))
-        .some(button => button.textContent?.trim() === "Print"));
-    styledTitle = titleRow?.querySelector(":scope > p") ?? null;
-    styledTitle?.classList.add("genie-demo-uncertain-title");
-  }
+  const link = linkFor(right);
+  const listing = originalListing(detail, link);
+  const key = keyFor(listing);
+  if (fingerprint === key && host?.isConnected && websiteLink === link) return;
+  clearView();
+  fingerprint = key;
+  websiteLink = link;
+  const prior = completed.get(key);
+  if (prior) applyRepair(link, prior, key);
+  host = prior
+    ? render(listing, { ok: true, result: prior }, key, link)
+    : render(listing, "checking", key, link);
   if (link) link.after(host);
   else right.prepend(host);
-  fingerprint = next;
+  if (prior) return;
+
+  const version = ++requestVersion;
+  const response = await requestCheck(listing);
+  if (version !== requestVersion || fingerprint !== key || !host?.isConnected) return;
+  if (response.ok) {
+    completed.set(key, response.result);
+    applyRepair(link, response.result, key);
+  }
+  const next = render(listing, response, key, link);
+  host.replaceWith(next);
+  host = next;
 }
 
 let timer: ReturnType<typeof setTimeout>;
 function schedule() {
   clearTimeout(timer);
-  timer = setTimeout(scan, 500);
+  timer = setTimeout(() => void scan(), 500);
 }
 
 new MutationObserver(records => {
-  // Shadow DOM isolates the preview's contents. Ignore inserting/removing its host.
-  const changed = records.some(record => record.type !== "childList" ||
+  const relevant = records.some(record => record.type !== "childList" ||
     [...record.addedNodes, ...record.removedNodes].some(node =>
       !(node instanceof Element && node.id === hostId)));
-  if (changed || (host && !host.isConnected)) schedule();
-}).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true,
-  attributeFilter: ["href"] });
+  if (relevant || (host && !host.isConnected)) schedule();
+}).observe(document.body, {
+  childList: true,
+  subtree: true,
+  characterData: true,
+  attributes: true,
+  attributeFilter: ["href"],
+});
+
 window.addEventListener("popstate", schedule);
-// pushState navigation can change the URL without a DOM mutation.
 let previousUrl = location.href;
 setInterval(() => {
   if (location.href !== previousUrl) {
     previousUrl = location.href;
-    clearPreview();
     fingerprint = "";
     schedule();
   }
