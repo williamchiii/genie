@@ -192,7 +192,7 @@ function headlineFor(result: CheckResult, key: string): string {
   if (hasVerifiedRepair(result) && restored.has(key)) return "Original link restored";
   if (result.status === "closed") return "● Confirmed not working";
   if (result.linkState === "broken" || result.linkState === "stale") return "● Link confirmed not working";
-  if (result.status === "uncertain" || result.linkState === "unknown") return "⚠ Genie uncertain";
+  if (result.status === "uncertain" || result.linkState === "unknown") return "";
   return "";
 }
 
@@ -208,7 +208,7 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
     .genie-repaired-heading::after { content:'✦ GENIE · LINK UPDATED'; margin-left:auto; color:#6941e8; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-active-heading::after { content:'✓ SERVICE ACTIVE'; margin-left:auto; color:#18754b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-unreachable-heading::after { content:'LINK NOT WORKING'; margin-left:auto; color:#c9202b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
-    .genie-uncertain-heading::after { content:'GENIE · UNCERTAIN'; margin-left:auto; color:#96600b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-uncertain-heading::after { content:'⚠ GENIE · UNCERTAIN'; margin-left:auto; color:#96600b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-closed-heading::after { content:'GENIE · NOT WORKING'; margin-left:auto; color:#c9202b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-uncertain-title::after { content:'●'; color:#bc7c19; font-size:17px; margin-left:12px; vertical-align:middle; }
     .genie-closed-title::after { content:'●'; color:#c9202b; font-size:17px; margin-left:12px; vertical-align:middle; }
@@ -239,7 +239,7 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
 
   if (!state.ok) {
     card.className = "uncertain";
-    card.append(element("p", "⚠ Genie uncertain"));
+    card.hidden = true;
     root.append(style, card);
     return mount;
   }
