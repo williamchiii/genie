@@ -46,6 +46,8 @@ interface SearchApiResult {
   tags?: string[];
 }
 
+const SPARKLE_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="#5B3FD9" stroke="none"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2z"></path></svg>`;
+
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -136,29 +138,40 @@ function badgeLabel(state: "checking" | CheckReply): string {
   return "Uncertain";
 }
 
-function renderBadge(state: "checking" | CheckReply): HTMLElement {
+function renderBadge(state: "checking" | CheckReply, inset?: { top: string; right: string; fontFamily: string }): HTMLElement {
   const host = element("span");
   host.setAttribute(badgeMark, "");
   const root = host.attachShadow({ mode: "open" });
   root.append(element("style", `
-    :host { display:inline-flex; align-items:center; gap:5px; margin-left:8px;
-      vertical-align:middle; font:600 11px/1.4 system-ui,sans-serif; }
-    .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+    :host { position:absolute; top:8px; right:8px; display:inline-flex; align-items:center;
+      gap:3px; font:600 9px/1.3 system-ui,sans-serif; z-index:1; }
+    .dot { width:6px; height:6px; border-radius:50%; flex:none; }
     .dot.gray { background:#94a3b8; }
     .dot.green { background:#1b8a5a; }
-    .dot.purple { background:#6941e8; }
     .dot.yellow { background:#b7791f; }
     .dot.red { background:#c9202b; }
+    .sparkle { width:16px; height:16px; display:inline-flex; flex:none; }
+    .sparkle svg { display:block; }
     .label.gray { color:#475569; }
     .label.green { color:#1b8a5a; }
     .label.purple { color:#6941e8; }
     .label.yellow { color:#96600b; }
     .label.red { color:#c9202b; }
   `));
+  if (inset) {
+    host.style.top = inset.top;
+    host.style.right = inset.right;
+    host.style.fontFamily = inset.fontFamily;
+  }
   const color = badgeColor(state);
   const dot = element("span");
-  dot.className = `dot ${color}`;
   dot.setAttribute("aria-hidden", "true");
+  if (color === "purple") {
+    dot.className = "sparkle";
+    dot.innerHTML = SPARKLE_SVG;
+  } else {
+    dot.className = `dot ${color}`;
+  }
   const label = element("span", badgeLabel(state));
   label.className = `label ${color}`;
   root.append(dot, label);
@@ -219,13 +232,17 @@ const requested = new Set<string>();
 
 function paint(card: Element, listing: Listing, state: "checking" | CheckReply) {
   clearCard(card);
-  const heading = titleRow(card);
-  const badge = renderBadge(state);
-  if (heading) heading.append(badge);
-  else card.prepend(badge);
+  let inset: { top: string; right: string; fontFamily: string } | undefined;
+  if (card instanceof HTMLElement) {
+    if (!card.style.position) card.style.position = "relative";
+    const style = getComputedStyle(card);
+    inset = { top: style.paddingTop, right: style.paddingRight, fontFamily: style.fontFamily };
+  }
+  const badge = renderBadge(state, inset);
+  card.prepend(badge);
   if (state !== "checking" && state.ok) {
     const details = renderDetails(listing, state.result);
-    heading?.after(details);
+    titleRow(card)?.after(details);
   }
 }
 
