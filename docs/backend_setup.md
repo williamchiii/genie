@@ -36,11 +36,12 @@ backend/
     result.py         CheckResult and source validation models
   services/
     link_checker.py   Public website HTTP checks
-    checks.py         Full verification pipeline and bounded cache
+    checks.py         Verification, shared tasks, queue, and cache
     gemini.py         Grounded discovery and evidence assessment
   tests/
     test_checks.py    HTTP, cache, validation, and safety checks
     test_gemini.py    Provider, evidence, repair, and timeout tests
+    test_concurrency.py  Duplicate requests, queue, and cancellation
   requirements.txt    Python dependencies
 ```
 
@@ -110,3 +111,18 @@ Check the key's Google AI Studio project billing and quota before retrying. Smal
 Current [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing) lists Gemini 3.5 Flash-Lite at $0.30 per million input tokens and $2.50 per million output tokens on the paid tier. Search grounding is paid-tier only, with 5,000 included monthly search requests shared across Gemini 3 models, then $14 per 1,000 search requests. These are published rates, not a measurement of this project's charges.
 
 References: [grounded search](https://ai.google.dev/gemini-api/docs/google-search), [Gemini REST API](https://ai.google.dev/api/generate-content), and [model capabilities](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite).
+
+## Concurrent checks
+
+```text
+MAX_CONCURRENT_CHECKS=2
+MAX_QUEUED_CHECKS=16
+```
+
+Up to two unique listing verifications run at once, including original website checks, source retrieval, and Gemini calls. Up to 16 more unique listings can wait. Matching in-flight requests share one task and do not take another queue slot. Each caller receives its own listingId and an independent response object. Different addresses, service descriptions, or other listing fields produce separate checks. Sharing a current task is not a cache hit: `cached` remains false until a later request uses a completed cached assessment.
+
+The 20 second check deadline includes queue time, so waiting does not silently extend past the extension's timeout. Requests arriving at full capacity return HTTP 200 with Uncertain, unknown link state, null checkedAt, and a busy explanation. Queue timeouts return Uncertain and are not cached. No automatic retry occurs.
+
+Cancelling one waiting caller does not cancel the task while other callers still need it. If every caller cancels, the task is cancelled too. Application shutdown cancels outstanding tasks. A cancelled network request may already have reached the provider, so this is not a guarantee that a cancelled request incurs no charge.
+
+Limits, deduplication, and caches are local to one server worker. Use one worker for the hackathon demo; multiple processes or replicas have separate limits. Restart after changing these settings. Concurrency controls simultaneous work, not the provider's requests per minute or a total spending cap.

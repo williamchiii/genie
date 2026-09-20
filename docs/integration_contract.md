@@ -24,7 +24,7 @@ Default backend: `http://localhost:8787`. The extension must make this configura
 
 `POST /api/check` takes one listing and returns one result. The extension permits at most two concurrent checks, debounces page changes by 500 ms, and deduplicates unchanged listings within the page session. The backend caches identical normalized listing fields for 30 minutes. Cache hits preserve the original check time. Do not cache transient provider failures for the full normal period.
 
-Target a 20 second backend deadline and a 25 second extension timeout. No automatic retry loops.
+Target a 20 second backend deadline, including queue time, and a 25 second extension timeout. The backend defaults to two concurrent unique checks and up to 16 queued unique checks per worker. Simultaneous requests with identical substantive listing fields share one verification, but each response echoes its caller's listingId. Shared in-flight work is not a cache hit. If capacity is full, return HTTP 200 with Uncertain, unknown link state, null checkedAt, and a busy explanation. Do not cache busy or timed out results. No automatic retry loops.
 
 ## Request
 

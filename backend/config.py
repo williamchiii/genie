@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     max_redirects: int = Field(default=5, ge=0, le=10)
     cache_ttl_seconds: int = Field(default=1800, ge=1)
     cache_max_entries: int = Field(default=256, ge=1, le=10000)
+    max_concurrent_checks: int = Field(default=2, ge=1, le=10)
+    max_queued_checks: int = Field(default=16, ge=0, le=100)
     gemini_enabled: bool = True
     gemini_model: str = Field(default="gemini-3.5-flash-lite", pattern=r"^[a-zA-Z0-9._-]+$")
     gemini_timeout_seconds: float = Field(default=10, gt=0, le=20)

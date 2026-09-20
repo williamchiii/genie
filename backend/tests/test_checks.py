@@ -135,9 +135,9 @@ class CacheTests(unittest.IsolatedAsyncioTestCase):
     async def test_cache_expires_and_is_bounded(self):
         observation = LinkCheck('working', 'HTTP only.', datetime.now(timezone.utc))
         with patch('services.checks.check_link', AsyncMock(return_value=observation)) as fetch:
-            with patch('services.checks.time.monotonic', return_value=0):
+            with patch('services.checks.monotonic', return_value=0):
                 await checks.check_listing(self.listing)
-            with patch('services.checks.time.monotonic', return_value=settings.cache_ttl_seconds + 1):
+            with patch('services.checks.monotonic', return_value=settings.cache_ttl_seconds + 1):
                 await checks.check_listing(self.listing)
             self.assertEqual(fetch.await_count, 2)
             with patch.object(settings, 'cache_max_entries', 1):
