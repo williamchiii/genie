@@ -1,76 +1,66 @@
 # Genie
 
-## What Genie is
+## Goal
 
-Genie is a Gemini powered link health layer for the Florida Community Resource Map.
+Build a competitive, working demo for the CityCamp Gainesville Hack Day General Civic Tech track. Submission is due September 20, 2026 at 5 PM. The team has two people, a Gemini API key, and a preference for no spending.
 
-Its purpose is simple: people looking for food, housing, health care, or other help should not waste time on a resource listing that sends them to a broken website.
+Genie is a Chrome extension for general users of the Florida Community Resource Map. It automatically checks public listings rendered on the user's current page and displays a service status beside each listing. When evidence supports a replacement for a broken website, Genie provides that link.
 
-## The problem
+The team is independent of Florida Community Innovation (FCI). Do not imply a partnership, private data access, or endorsement. The extension annotates the user's browser view and does not edit FCI records.
 
-The Florida Community Resource Map helps residents and social workers find essential local resources. Some listings have websites that are outdated, moved, or broken. A 404 page can become a real barrier for someone trying to find help.
+## Confirmed decisions
 
-However, a broken website link does **not** mean the organization or service is closed. Genie must never make that claim from a failed link alone.
-
-## The core idea
-
-Genie checks a Resource Map listing and gives it a clear, evidence backed status:
+1. Audience: general users, including residents seeking food, housing, health care, and other help.
+2. Surface: a Chrome extension on https://www.floridaresourcemap.org/.
+3. Trigger: scanning happens automatically, including newly rendered listings as users browse.
+4. Placement: results appear beside each listing.
+5. Exactly three service statuses: Active, Confirmed closed, and Uncertain.
+6. A broken website never proves that the actual service has closed.
 
 | Status | Meaning |
 | --- | --- |
-| Verified link | The listed website works and contains current service information. |
-| Broken link, service likely active | The listed website failed, but current credible sources point to an active matching service. |
-| Needs human review | The listed website failed and Genie could not find enough reliable evidence to determine what changed. |
-| Information may be stale | The website works, but there is not enough current service information to verify the listing. |
+| Active | Current credible evidence supports that the matching service operates. |
+| Confirmed closed | Explicit credible evidence establishes that the matching service has permanently closed or ended. |
+| Uncertain | Evidence is missing, conflicting, stale, or insufficient for a confident match. |
 
-Genie does not automatically edit the Resource Map. It gives FCI staff or nonprofit partners evidence they can use to review and update a listing.
+Match the specific service and location, not just the parent organization. A functioning website or active corporate registration alone does not establish that a service operates. A timeout, 404, missing search result, or temporary closure cannot establish permanent closure. Active is not a guarantee of availability today.
 
-## Real example that inspired Genie
+Checking is an interface state, not a fourth service status. Failed checks display Uncertain with an explanation.
 
-The Florida Community Resource Map listing for **S4P Synergy, Inc.** displayed this website:
+## Demo scope
 
-`https://www.strivinghome.org/synergy/home-synergy`
+Show one complete interaction: a user browses resources, Genie checks automatically, and a result beside the listing explains the evidence and offers an updated website when supported. Show source links and the check time in an expandable area beside the listing.
 
-That link returns a 404 page. But the organization and service appear to still be active:
+Prioritize a real Gainesville or Alachua County example. Do not invent a closure just to demonstrate all three states. Explicitly labeled fixtures can demonstrate interface states separately from live results.
 
-1. A current Synergy page exists at https://www.strivinghome.org/departments/synergy
-2. Florida corporate records list S4P Synergy as active, with a reinstatement filed in March 2026.
-3. Feeding the Gulf Coast still lists S4P Synergy food distribution information.
+No accounts, staff dashboard, full map crawl, record editing, or Chrome Web Store publication are required. Use an unpacked extension for the demo.
 
-The correct Genie result is not “service dead.” It is:
+## Gemini and evidence
 
-> **Broken link, service likely active**
+Ordinary code checks links and retrieves public evidence. Gemini compares names, addresses, phone numbers, and services across retrieved evidence, then returns structured findings. Asking Gemini to recall an organization is not verification.
 
-> The listed website returned 404. Genie found matching current sources for the organization and its food support services. A reviewer should confirm the updated details before publishing.
+Keep the key in backend environment variables, never in the extension or repository. Cache repeated checks and handle missing quota honestly. Verify search or grounding availability and cost before relying on it. No paid dependency should be assumed.
 
-## How Gemini fits
+## Original motivating example
 
-Regular code checks whether a website responds, redirects, times out, or returns an error.
+The original notes identified an S4P Synergy listing pointing to https://www.strivinghome.org/synergy/home-synergy and a possible replacement at https://www.strivinghome.org/departments/synergy, with corporate and pantry records as supporting leads. Reverify these claims before using them in the demo. This example is outside Gainesville, so seek a local example as well.
 
-Gemini handles the harder comparison work:
+## Team documents
 
-1. Compare the Resource Map listing with current public sources.
-2. Decide whether the organization name, address, phone number, and service type are likely a match.
-3. Extract proposed updates from the public source.
-4. Return the evidence and uncertainty in a structured format.
+Read this context, then [the integration contract](integration_contract.md), then your role:
 
-Gemini is not the final authority. It helps turn messy public webpages into an evidence backed review suggestion.
+1. [Backend and verification](backend.md)
+2. [Extension UI](extension_ui.md)
 
-## Who Genie helps
+Product decisions above are user confirmed. Role assignments, directory ownership, API shape, and operational limits are working defaults selected to enable independent implementation. Coordinate changes to shared decisions before implementing them.
 
-1. **Residents:** fewer dead ends when looking for urgent help.
-2. **Social workers:** more dependable referrals.
-3. **FCI staff:** a faster way to find and review stale listings.
-4. **Nonprofits:** a clearer path to correcting their public information.
+## Sources and submission
 
-## Why it matters
+1. Resource Map: https://www.floridaresourcemap.org/
+2. FCI project: https://floridainnovation.org/projects/the-florida-community-resource-map/
+3. Hackathon: https://citycamp-hack-day.devpost.com/
+4. Possible Synergy replacement: https://www.strivinghome.org/departments/synergy
+5. Corporate records: https://search.sunbiz.org/
+6. Pantry directory: https://www.feedingthegulfcoast.org/find-help/find-a-pantry/results?address=32504
 
-The Florida Community Resource Map already solves discovery: it helps people find relevant organizations. Genie focuses on the next moment: whether the link still takes a person somewhere useful.
-
-## Sources
-
-1. Florida Community Resource Map: https://www.floridaresourcemap.org/
-2. FCI Resource Map project: https://floridainnovation.org/projects/the-florida-community-resource-map/
-3. S4P Synergy current page: https://www.strivinghome.org/departments/synergy
-4. Florida Division of Corporations record: https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResults?Detail=FL.DOS.Corporations.Shared.Contracts.FilingRecord&InquiryDirectionType=PreviousRecord&InquiryType=EntityName&ListNameOrder=S4PSYNERGY+N000000073080&SearchNameOrder=S4PVERTICALLYWRITTENWITHACROSS+T000000011110&SearchTerm=S4+DESIGN+AND+DEVELOPMENT%2C+LLC
-5. Feeding the Gulf Coast pantry listing: https://www.feedingthegulfcoast.org/find-help/find-a-pantry/results?address=32504
+Submit an interactive artifact, project name, track, description of what it does and whom it helps, repository or project link, and team members. Credit sources and libraries and explain continuation after Hack Day. A demo video is encouraged. Judging covers problem and impact, execution, design and usability, and clarity. Best use of Google Gemini is an optional additional award.
