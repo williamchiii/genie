@@ -83,7 +83,7 @@ function statusText(result: CheckResult): string {
 
 function statusClass(result: CheckResult): string {
   if (result.status === "closed") return "closed";
-  if (result.status === "active" && result.replacementUrl) return "repair";
+  if (hasVerifiedRepair(result)) return "repair";
   if (result.status === "active" && ["working", "redirected"].includes(result.linkState)) return "active";
   return "uncertain";
 }
@@ -124,7 +124,7 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
     :host { display:block; margin:10px 0 0; color:#172033; font:13px/1.5 system-ui,sans-serif; }
     article { border-left:3px solid #94a3b8; padding:8px 10px; background:#f8fafc; overflow-wrap:anywhere; }
     article.active { border-color:#1b8a5a; background:#edf9f2; }
-    article.repair { border-color:#b7791f; background:#fff8e7; }
+    article.repair { border-color:#1b8a5a; background:#edf9f2; }
     article.closed { border-color:#c9202b; background:#fff0f1; }
     article.uncertain { border-color:#a66a12; background:#fffaf0; }
     p { margin:4px 0; } .headline { font-weight:700; } .muted { color:#475569; }
@@ -153,7 +153,7 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
 
   const repaired = hasVerifiedRepair(result) && !restored.has(key);
   card.className = statusClass(result);
-  const headline = element("p", repaired ? "Updated link by Genie" : statusText(result));
+  const headline = element("p", repaired ? "✓ Updated link by Genie" : statusText(result));
   headline.className = "headline";
   card.append(headline, element("p", result.reason));
   const details = element("details");

@@ -112,7 +112,7 @@ If a later check cannot support an already applied repair, restore the original 
 
 ### Listing indicators
 
-Use red for Confirmed closed, yellow for an Active service whose broken or stale link has a verified replacement, and green for an Active service with a working original link. A correctly redirected link may be green only when its destination matches the verified service. Uncertain remains neutral, including a broken link without a verified repair. Color must be accompanied by readable status text.
+Use red for Confirmed closed and green with a check mark for an Active service whose original link has a verified replacement. Use green for an Active service with a working original link. A correctly redirected link may be green only when its destination matches the verified service. Uncertain remains neutral, including a broken link without a verified repair. Color must be accompanied by readable status text.
 
 ## Mock fixtures
 

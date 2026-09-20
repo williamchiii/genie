@@ -102,12 +102,22 @@ def candidate(data: dict) -> dict:
 
 
 async def discover(listing: ListingRequest, link: LinkCheck) -> tuple[list[str], SearchAttribution | None]:
+    domain_search = ""
+    if listing.website is not None and link.state in {"broken", "unknown"}:
+        hostname = httpx.URL(str(listing.website)).host
+        if hostname:
+            domain_search = (
+                f" Also run a domain-restricted Google Search query using site:{hostname} for "
+                "the organization and service. A broken old path may have moved within the "
+                "same official website."
+            )
     prompt = (
         f"Today is {datetime.now(timezone.utc).date()}. Use Google Search to find current official "
         "service pages and credible local directory or closure notices for this exact listing. "
         "Search even if you recognize the organization. Find direct service pages, not general "
         "homepages when a service page exists. Cite your sources. Report conflicts and uncertainty. "
-        "Do not conclude that a service closed from a broken link.\n"
+        "Do not conclude that a service closed from a broken link."
+        + domain_search + "\n"
         + json.dumps({"listing": listing.model_dump(mode="json", exclude={"listingId"}), "linkState": link.state})
     )
     data = await generate({
