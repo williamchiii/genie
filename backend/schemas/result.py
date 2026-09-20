@@ -24,6 +24,7 @@ class CheckResult(BaseModel):
     linkState: Literal["working", "redirected", "broken", "stale", "unknown"] = "unknown"
     replacementUrl: HttpUrl | None = None
     sources: list[Source] = Field(default_factory=list)
+    addressMismatch: bool = False
     cached: bool = False
     searchAttribution: SearchAttribution | None = None
 

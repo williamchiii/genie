@@ -26,6 +26,7 @@ export interface CheckResult {
   linkState: "working" | "redirected" | "broken" | "stale" | "unknown";
   replacementUrl: string | null;
   sources: Source[];
+  addressMismatch?: boolean;
   cached: boolean;
   searchAttribution?: { renderedContent: string; queries: string[] } | null;
 }
@@ -57,7 +58,8 @@ function isCheckResult(value: unknown): value is CheckResult {
     && validStatus && typeof result.reason === "string"
     && (result.checkedAt === null || typeof result.checkedAt === "string")
     && validLinkState && (result.replacementUrl === null || isHttpUrl(result.replacementUrl))
-    && validSources && typeof result.cached === "boolean";
+    && validSources && (result.addressMismatch === undefined || typeof result.addressMismatch === "boolean")
+    && typeof result.cached === "boolean";
 }
 
 async function checkListing(listing: ListingRequest): Promise<CheckReply> {

@@ -62,6 +62,7 @@ All fields are present. `listingId` and `name` are nonempty strings. Other value
       "retrievedAt": "2026-09-20T16:00:00Z"
     }
   ],
+  "addressMismatch": false,
   "cached": false
 }
 ```
@@ -76,6 +77,7 @@ This fictional example illustrates the schema, not a real finding. All fields sh
 6. `checkedAt`: UTC ISO 8601 string when a check completed, otherwise null. Mock examples without an actual check use null. Failed live attempts that did not complete a check also use null. Source `retrievedAt` must be a UTC ISO 8601 string for actual retrieved content. Retrieval time alone does not establish that source information is current.
 7. `cached`: boolean. Mock fixtures use false.
 8. `mode`: exactly `live` or `mock`. This is a data origin marker, not a service status. The UI must visibly label mock results “Demo data, not a live check.” Never silently fall back to mock mode after a live failure.
+9. `addressMismatch`: boolean. It is true only when retrieved evidence explicitly gives a conflicting address for a listing with an address. The UI labels that Uncertain result Address mismatch.
 
 For live results, Active and Confirmed closed require supporting sources and a confident match to the specific service and location. Confirmed closed additionally requires explicit permanent closure evidence. Weak or conflicting evidence yields Uncertain.
 

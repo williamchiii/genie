@@ -18,6 +18,7 @@ interface CheckResult {
   linkState: "working" | "redirected" | "broken" | "stale" | "unknown";
   replacementUrl: string | null;
   sources: Source[];
+  addressMismatch?: boolean;
   cached: boolean;
   searchAttribution?: { renderedContent: string; queries: string[] } | null;
 }
@@ -83,7 +84,7 @@ function clearView() {
   host?.remove();
   host = null;
   websiteLink?.classList.remove("genie-updated-link", "genie-link-unreachable");
-  websiteHeading?.classList.remove("genie-repaired-heading", "genie-active-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
+  websiteHeading?.classList.remove("genie-repaired-heading", "genie-active-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-address-mismatch-heading", "genie-closed-heading");
   listingTitle?.classList.remove("genie-uncertain-title", "genie-closed-title");
   websiteLink = null;
   websiteHeading = null;
@@ -148,6 +149,10 @@ function restoreOriginal(link: HTMLAnchorElement | null, key: string) {
   restored.add(key);
 }
 
+function hasAddressMismatch(result: CheckResult): boolean {
+  return result.status === "uncertain" && result.addressMismatch === true;
+}
+
 function replacementFor(link: HTMLAnchorElement | null): HTMLAnchorElement | null {
   const sibling = link?.nextElementSibling;
   return sibling instanceof HTMLAnchorElement && sibling.dataset.genieReplacement === "true"
@@ -157,7 +162,7 @@ function replacementFor(link: HTMLAnchorElement | null): HTMLAnchorElement | nul
 
 function applyListingTreatment(result: CheckResult, key: string) {
   websiteLink?.classList.remove("genie-updated-link", "genie-link-unreachable");
-  websiteHeading?.classList.remove("genie-repaired-heading", "genie-active-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
+  websiteHeading?.classList.remove("genie-repaired-heading", "genie-active-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-address-mismatch-heading", "genie-closed-heading");
   listingTitle?.classList.remove("genie-uncertain-title", "genie-closed-title");
   if (hasVerifiedRepair(result) && !restored.has(key)) {
     websiteLink?.classList.add("genie-link-unreachable");
@@ -178,7 +183,7 @@ function applyListingTreatment(result: CheckResult, key: string) {
     return;
   }
   if (result.status === "uncertain" || result.linkState === "unknown") {
-    websiteHeading?.classList.add("genie-uncertain-heading");
+    websiteHeading?.classList.add(hasAddressMismatch(result) ? "genie-address-mismatch-heading" : "genie-uncertain-heading");
     listingTitle?.classList.add("genie-uncertain-title");
     return;
   }
@@ -204,11 +209,12 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
     a.genie-link-unreachable { color:#929baa !important; text-decoration:line-through !important; text-decoration-thickness:1px !important; }
     a.genie-link-unreachable:focus-visible, a.genie-replacement-link:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
     a.genie-replacement-link { display:block; box-sizing:border-box; width:100%; max-width:100%; margin-top:4px; color:#6941e8 !important; font-weight:600 !important; overflow-wrap:anywhere; word-break:break-word; }
-    .genie-repaired-heading, .genie-active-heading, .genie-unreachable-heading, .genie-uncertain-heading, .genie-closed-heading { align-items:baseline; gap:6px; flex-wrap:wrap; }
+    .genie-repaired-heading, .genie-active-heading, .genie-unreachable-heading, .genie-uncertain-heading, .genie-address-mismatch-heading, .genie-closed-heading { align-items:baseline; gap:6px; flex-wrap:wrap; }
     .genie-repaired-heading::after { content:'✦ GENIE · LINK UPDATED'; margin-left:auto; color:#6941e8; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-active-heading::after { content:'✓ SERVICE ACTIVE'; margin-left:auto; color:#18754b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-unreachable-heading::after { content:'LINK NOT WORKING'; margin-left:auto; color:#c9202b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-uncertain-heading::after { content:'⚠ GENIE · UNCERTAIN'; margin-left:auto; color:#96600b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-address-mismatch-heading::after { content:'⚠ ADDRESS MISMATCH'; margin-left:auto; color:#96600b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-closed-heading::after { content:'GENIE · NOT WORKING'; margin-left:auto; color:#c9202b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-uncertain-title::after { content:'●'; color:#bc7c19; font-size:17px; margin-left:12px; vertical-align:middle; }
     .genie-closed-title::after { content:'●'; color:#c9202b; font-size:17px; margin-left:12px; vertical-align:middle; }

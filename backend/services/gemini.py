@@ -30,6 +30,7 @@ class Assessment(BaseModel):
     status: Literal["active", "closed", "uncertain"]
     reason: str = Field(min_length=1, max_length=1000)
     matchesListing: bool
+    addressMismatch: bool = False
     currentEvidence: bool
     permanentClosure: bool
     originalStale: bool
@@ -156,6 +157,10 @@ for the matched service, not a temporary closure or another branch. Set
 permanentClosure only for that evidence and include a closure citation.
 Set matchesListing only for a confident name/service/location match; if the
 listing has few identifiers and the match is ambiguous, return uncertain.
+Set addressMismatch true only when a fetched source explicitly gives an address
+that conflicts with the listing's non-null address. A missing address or a
+different address format alone is not a mismatch. Address mismatch requires an
+uncertain result.
 Use citation kind service for operation evidence, identity for identity evidence,
 closure for permanent closure, and stale for explicit evidence that the original
 page is superseded or unrelated. Current date alone is not source freshness.
@@ -235,6 +240,7 @@ def apply_assessment(listing: ListingRequest, link: LinkCheck, pages: list[LinkC
         listingId=listing.listingId, status=status, reason=reason,
         checkedAt=datetime.now(timezone.utc), linkState=state,
         replacementUrl=replacement, sources=sources,
+        addressMismatch=assessment.addressMismatch and status == "uncertain" and listing.address is not None,
     )
 
 
