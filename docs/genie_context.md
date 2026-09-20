@@ -1,5 +1,7 @@
 # Genie
 
+Implementation handoff: [team tasks and role split](team_tasks.md), [proposed API contract](review_api_contract.md), and [S4P fixtures](fixtures/s4p-listing.json).
+
 ## What Genie is
 
 Genie is a Gemini powered link health layer for the Florida Community Resource Map.
