@@ -84,7 +84,7 @@ function clearView() {
   host = null;
   websiteLink?.classList.remove("genie-updated-link", "genie-link-unreachable");
   websiteHeading?.classList.remove("genie-repaired-heading", "genie-active-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
-  listingTitle?.classList.remove("genie-uncertain-title", "genie-closed-title");
+  listingTitle?.classList.remove("genie-closed-title");
   websiteLink = null;
   websiteHeading = null;
   listingTitle = null;
@@ -158,7 +158,7 @@ function replacementFor(link: HTMLAnchorElement | null): HTMLAnchorElement | nul
 function applyListingTreatment(result: CheckResult, key: string) {
   websiteLink?.classList.remove("genie-updated-link", "genie-link-unreachable");
   websiteHeading?.classList.remove("genie-repaired-heading", "genie-active-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
-  listingTitle?.classList.remove("genie-uncertain-title", "genie-closed-title");
+  listingTitle?.classList.remove("genie-closed-title");
   if (hasVerifiedRepair(result) && !restored.has(key)) {
     websiteLink?.classList.add("genie-link-unreachable");
     websiteHeading?.classList.add("genie-repaired-heading");
@@ -179,7 +179,6 @@ function applyListingTreatment(result: CheckResult, key: string) {
   }
   if (result.status === "uncertain" || result.linkState === "unknown") {
     websiteHeading?.classList.add("genie-uncertain-heading");
-    listingTitle?.classList.add("genie-uncertain-title");
     return;
   }
   if (result.status === "active" && ["working", "redirected"].includes(result.linkState)) {
@@ -210,7 +209,6 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
     .genie-unreachable-heading::after { content:'LINK NOT WORKING'; margin-left:auto; color:#c9202b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-uncertain-heading::after { content:'⚠ GENIE · UNCERTAIN'; margin-left:auto; color:#96600b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-closed-heading::after { content:'GENIE · NOT WORKING'; margin-left:auto; color:#c9202b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
-    .genie-uncertain-title::after { content:'●'; color:#bc7c19; font-size:17px; margin-left:12px; vertical-align:middle; }
     .genie-closed-title::after { content:'●'; color:#c9202b; font-size:17px; margin-left:12px; vertical-align:middle; }
   `));
   const root = mount.attachShadow({ mode: "open" });
@@ -358,7 +356,6 @@ async function scan() {
     applyListingTreatment(response.result, key);
   } else {
     websiteHeading?.classList.add("genie-uncertain-heading");
-    listingTitle?.classList.add("genie-uncertain-title");
   }
   const next = render(listing, response, key, link);
   host.replaceWith(next);
