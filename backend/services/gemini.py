@@ -92,6 +92,11 @@ def generation_config(max_tokens: int) -> dict:
     config = {"temperature": 0, "maxOutputTokens": max_tokens}
     if settings.gemini_model.startswith("gemini-2.5-"):
         config["thinkingConfig"] = {"thinkingBudget": 0}
+    elif not settings.gemini_model.endswith("-lite"):
+        # Non-lite models think by default with no bound, which risks blowing the
+        # fixed 20s check budget on a slow or complex verification. Cap it instead
+        # of disabling it outright, keeping most of the model's extra reasoning.
+        config["thinkingConfig"] = {"thinkingBudget": 1024}
     return config
 
 
