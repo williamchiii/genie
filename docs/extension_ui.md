@@ -19,8 +19,9 @@ Own `extension/`, its manifest, UI, dependency files and tests, and `docs/extens
 3. Extract name, website, address, phone, and service type where available. Missing optional fields are null. Generate a stable page identifier. Process rendered listings and opened details, not an invisible full dataset.
 4. Scan automatically and observe new listings. Follow contract limits for debounce, concurrency, deduplication, and timeouts. Ignore extension inserted elements to prevent observer loops. Discard stale results if a page element now represents a different listing.
 5. Insert a compact Checking indicator beside each listing, then replace it with the status. Use text and icons as well as color. Provide an accessible expandable evidence area beside the listing with reason, sources, check time, and replacement link.
-6. Connect to the real backend. Render external text safely without inserting it as HTML. Permit only HTTP or HTTPS source links. Show Uncertain on errors. A manual retry is useful, but scanning must not depend on it.
-7. Write exact unpacked installation, backend configuration, reload, and demo instructions in `docs/extension_setup.md`.
+6. Apply verified live replacements to the listing website button according to the integration contract. Label the change “Updated link by Genie”, preserve the original URL and evidence, and provide “Use original link”. Mock or uncertain results must not rewrite real listing links.
+7. Connect to the real backend. Render external text safely without inserting it as HTML. Permit only HTTP or HTTPS source links. Show Uncertain on errors. A manual retry is useful, but scanning must not depend on it.
+8. Write exact unpacked installation, backend configuration, reload, and demo instructions in `docs/extension_setup.md`.
 
 ## Work independently before the backend is ready
 
