@@ -13,3 +13,15 @@ async def invalid_request_handler(_request: Request, _error: RequestValidationEr
             }
         },
     )
+
+
+async def internal_error_handler(_request: Request, _error: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Could not complete this check.",
+            }
+        },
+    )
