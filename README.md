@@ -5,7 +5,7 @@ Bare framework setup. Product plans and role assignments are in `docs/`. No prod
 | Folder | Owner | Stack |
 | --- | --- | --- |
 | `backend/` | William | Python and FastAPI |
-| `extension/` | Teammate | Chrome Manifest V3, React, TypeScript, esbuild |
+| `extension/` | Ethan | Chrome Manifest V3, React, TypeScript, esbuild |
 
 Each folder has independent dependencies. Use Python 3.10 or newer for the backend and Node 22.12 or newer for the extension (`nvm use` from the root).
 
