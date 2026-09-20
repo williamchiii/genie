@@ -1,15 +1,25 @@
 # Backend setup
 
-Use Node 22.12 or newer. Run `nvm use` from the repository root if using nvm.
+Use Python 3.10 or newer. The backend uses FastAPI and is independent of the extension's Node setup.
 
 ```sh
 cd backend
-npm ci
-npm run dev
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+fastapi dev main.py --host 127.0.0.1 --port 8787
 ```
 
-The empty Express server listens on `127.0.0.1:8787`. No routes, verification, or Gemini integration are implemented. Requests return Express's default 404 until routes are added.
+On subsequent runs, activate `.venv` and run the final command. The development server reloads when Python files change. Stop it with Ctrl+C.
 
-Start work in `src/server.ts`. Optionally copy `.env.example` to `.env` to configure HOST and PORT. Do not overwrite an existing environment file or commit secrets.
+The bare app is in `main.py`. No application routes, verification, or Gemini integration are implemented. Opening `/` returns 404. FastAPI provides interactive API documentation at http://localhost:8787/docs and the schema at http://localhost:8787/openapi.json.
 
-`npm run typecheck` checks TypeScript. `npm run build` compiles to `dist/`. `npm start` runs the compiled server.
+Dependencies are recorded in `requirements.txt`. Keep environment files and API keys out of Git. The future API contract still uses port 8787 and the same request and response shapes.
+
+For a server without automatic reload:
+
+```sh
+python -m uvicorn main:app --host 127.0.0.1 --port 8787
+```
+
+Reference: [FastAPI first steps](https://fastapi.tiangolo.com/tutorial/first-steps/).

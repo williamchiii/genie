@@ -4,20 +4,22 @@ Bare framework setup. Product plans and role assignments are in `docs/`. No prod
 
 | Folder | Owner | Stack |
 | --- | --- | --- |
-| `backend/` | William | Express and TypeScript |
+| `backend/` | William | Python and FastAPI |
 | `extension/` | Teammate | Chrome Manifest V3, React, TypeScript, esbuild |
 
-Each folder has independent dependencies and build commands. Use Node 22.12 or newer (`nvm use` from the root).
+Each folder has independent dependencies. Use Python 3.10 or newer for the backend and Node 22.12 or newer for the extension (`nvm use` from the root).
 
 ## Backend
 
 ```sh
 cd backend
-npm ci
-npm run dev
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+fastapi dev main.py --host 127.0.0.1 --port 8787
 ```
 
-Starts an empty Express server on port 8787. No routes are defined yet.
+Starts a bare FastAPI server on port 8787. No application routes are defined yet. Interactive API documentation is available at http://localhost:8787/docs.
 
 ## Extension
 
