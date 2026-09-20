@@ -112,7 +112,7 @@ If a later check cannot support an already applied repair, restore the original 
 
 ### Listing indicators
 
-Use red for Confirmed closed and green with a check mark for an Active service whose original link has a verified replacement. Use green for an Active service with a working original link. A correctly redirected link may be green only when its destination matches the verified service. Uncertain remains neutral, including a broken link without a verified repair. Color must be accompanied by readable status text.
+Use green for an Active service with a working original link. Use yellow when the link works but current service evidence is insufficient, the match is uncertain, the address conflicts, the destination is unknown, or the site is under repair. Use red for a Confirmed closed service or a confirmed broken or stale link without a verified replacement. Use purple when Genie applies a verified link or address update. A correctly redirected link may be green only when its destination matches the verified service. Color must be accompanied by readable status text.
 
 ## Mock fixtures
 

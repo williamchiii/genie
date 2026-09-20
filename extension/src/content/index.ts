@@ -83,7 +83,7 @@ function clearView() {
   host?.remove();
   host = null;
   websiteLink?.classList.remove("genie-updated-link", "genie-link-unreachable");
-  websiteHeading?.classList.remove("genie-repaired-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
+  websiteHeading?.classList.remove("genie-repaired-heading", "genie-active-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
   listingTitle?.classList.remove("genie-uncertain-title", "genie-closed-title");
   websiteLink = null;
   websiteHeading = null;
@@ -157,7 +157,7 @@ function replacementFor(link: HTMLAnchorElement | null): HTMLAnchorElement | nul
 
 function applyListingTreatment(result: CheckResult, key: string) {
   websiteLink?.classList.remove("genie-updated-link", "genie-link-unreachable");
-  websiteHeading?.classList.remove("genie-repaired-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
+  websiteHeading?.classList.remove("genie-repaired-heading", "genie-active-heading", "genie-unreachable-heading", "genie-uncertain-heading", "genie-closed-heading");
   listingTitle?.classList.remove("genie-uncertain-title", "genie-closed-title");
   if (hasVerifiedRepair(result) && !restored.has(key)) {
     websiteLink?.classList.add("genie-link-unreachable");
@@ -177,19 +177,23 @@ function applyListingTreatment(result: CheckResult, key: string) {
     websiteHeading?.classList.add("genie-unreachable-heading");
     return;
   }
-  if (result.status === "uncertain") {
+  if (result.status === "uncertain" || result.linkState === "unknown") {
     websiteHeading?.classList.add("genie-uncertain-heading");
     listingTitle?.classList.add("genie-uncertain-title");
+    return;
+  }
+  if (result.status === "active" && ["working", "redirected"].includes(result.linkState)) {
+    websiteHeading?.classList.add("genie-active-heading");
   }
 }
 
 function headlineFor(result: CheckResult, key: string): string {
-  if (hasVerifiedRepair(result) && !restored.has(key)) return "✓ Updated link by Genie";
+  if (hasVerifiedRepair(result) && !restored.has(key)) return "";
   if (hasVerifiedRepair(result) && restored.has(key)) return "Original link restored";
-  if (result.status === "closed") return "● Confirmed closed";
-  if (result.linkState === "broken" || result.linkState === "stale") return "⚠ Website link not working";
-  if (result.status === "uncertain") return "⚠ Genie uncertain";
-  return "✓ Service active";
+  if (result.status === "closed") return "● Confirmed not working";
+  if (result.linkState === "broken" || result.linkState === "stale") return "● Link confirmed not working";
+  if (result.status === "uncertain" || result.linkState === "unknown") return "⚠ Genie uncertain";
+  return "";
 }
 
 function render(listing: Listing, state: "checking" | CheckReply, key: string, link: HTMLAnchorElement | null): HTMLElement {
@@ -199,12 +203,13 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
   mount.append(element("style", `
     a.genie-link-unreachable { color:#929baa !important; text-decoration:line-through !important; text-decoration-thickness:1px !important; }
     a.genie-link-unreachable:focus-visible, a.genie-replacement-link:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
-    a.genie-replacement-link { display:block; margin-top:4px; color:#18754b !important; font-weight:600 !important; }
-    .genie-repaired-heading, .genie-unreachable-heading, .genie-uncertain-heading, .genie-closed-heading { align-items:baseline; gap:6px; flex-wrap:wrap; }
-    .genie-repaired-heading::after { content:'✓ GENIE · LINK FIXED'; margin-left:auto; color:#18754b; background:#e6f5eb; padding:3px 9px; border-radius:20px; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
-    .genie-unreachable-heading::after { content:'⚠ LINK NOT WORKING'; margin-left:auto; color:#c9202b; background:#fcebed; padding:3px 9px; border-radius:20px; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
-    .genie-uncertain-heading::after { content:'⚠ GENIE · UNCERTAIN'; margin-left:auto; color:#96600b; background:#fff3da; padding:3px 9px; border-radius:20px; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
-    .genie-closed-heading::after { content:'● GENIE · CLOSED'; margin-left:auto; color:#c9202b; background:#fcebed; padding:3px 9px; border-radius:20px; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    a.genie-replacement-link { display:block; box-sizing:border-box; width:100%; max-width:100%; margin-top:4px; color:#6941e8 !important; font-weight:600 !important; overflow-wrap:anywhere; word-break:break-word; }
+    .genie-repaired-heading, .genie-active-heading, .genie-unreachable-heading, .genie-uncertain-heading, .genie-closed-heading { align-items:baseline; gap:6px; flex-wrap:wrap; }
+    .genie-repaired-heading::after { content:'✦ GENIE · LINK UPDATED'; margin-left:auto; color:#6941e8; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-active-heading::after { content:'✓ SERVICE ACTIVE'; margin-left:auto; color:#18754b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-unreachable-heading::after { content:'LINK NOT WORKING'; margin-left:auto; color:#c9202b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-uncertain-heading::after { content:'GENIE · UNCERTAIN'; margin-left:auto; color:#96600b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
+    .genie-closed-heading::after { content:'GENIE · NOT WORKING'; margin-left:auto; color:#c9202b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-uncertain-title::after { content:'●'; color:#bc7c19; font-size:17px; margin-left:12px; vertical-align:middle; }
     .genie-closed-title::after { content:'●'; color:#c9202b; font-size:17px; margin-left:12px; vertical-align:middle; }
   `));
@@ -212,7 +217,8 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
   const style = element("style", `
     :host { display:block; margin:10px 0 0; color:#172033; font:13px/1.5 system-ui,sans-serif; }
     article { padding:5px 0; overflow-wrap:anywhere; }
-    article.active .headline, article.repair .headline { color:#18754b; }
+    article.active .headline { color:#18754b; }
+    article.repair .headline { color:#6941e8; }
     article.broken .headline, article.closed .headline { color:#c9202b; }
     article.uncertain .headline { color:#96600b; }
     p { margin:0; } .headline { font-weight:700; } .muted { color:#475569; }
@@ -241,9 +247,12 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
 
   const repaired = hasVerifiedRepair(result) && !restored.has(key);
   card.className = statusClass(result);
-  const headline = element("p", headlineFor(result, key));
-  headline.className = "headline";
-  card.append(headline);
+  const headlineText = headlineFor(result, key);
+  if (headlineText) {
+    const headline = element("p", headlineText);
+    headline.className = "headline";
+    card.append(headline);
+  }
   const details = element("details");
   details.append(element("summary", "View Genie details"));
   details.append(element("p", result.reason));
