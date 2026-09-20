@@ -216,7 +216,6 @@ function render(listing: Listing, state: "checking" | CheckReply, key: string, l
     .genie-uncertain-heading::after { content:'⚠ GENIE · UNCERTAIN'; margin-left:auto; color:#96600b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-address-mismatch-heading::after { content:'⚠ ADDRESS MISMATCH'; margin-left:auto; color:#96600b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
     .genie-closed-heading::after { content:'GENIE · NOT WORKING'; margin-left:auto; color:#c9202b; font:700 10px/1.5 system-ui,sans-serif; letter-spacing:.3px; }
-    .genie-uncertain-title::after { content:'●'; color:#bc7c19; font-size:17px; margin-left:12px; vertical-align:middle; }
     .genie-closed-title::after { content:'●'; color:#c9202b; font-size:17px; margin-left:12px; vertical-align:middle; }
   `));
   const root = mount.attachShadow({ mode: "open" });
@@ -364,7 +363,6 @@ async function scan() {
     applyListingTreatment(response.result, key);
   } else {
     websiteHeading?.classList.add("genie-uncertain-heading");
-    listingTitle?.classList.add("genie-uncertain-title");
   }
   const next = render(listing, response, key, link);
   host.replaceWith(next);
