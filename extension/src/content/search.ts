@@ -22,6 +22,7 @@ interface CheckResult {
   linkState: "working" | "redirected" | "broken" | "stale" | "unknown";
   replacementUrl: string | null;
   sources: Source[];
+  addressMismatch?: boolean;
   cached: boolean;
 }
 
@@ -131,9 +132,7 @@ function badgeLabel(state: "checking" | CheckReply): string {
   if (result.status === "closed") return "Confirmed closed";
   if (result.status === "active" && result.replacementUrl) return "Updated link by Genie";
   if (result.status === "active") return "Active";
-  // The backend doesn't return a structured mismatch reason, only free text,
-  // so this is a best-effort label, not a claim the backend guarantees.
-  if (/\baddress\b/i.test(result.reason)) return "Check address";
+  if (result.addressMismatch) return "Address mismatch";
   return "Uncertain";
 }
 

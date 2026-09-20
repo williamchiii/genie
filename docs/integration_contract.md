@@ -28,6 +28,8 @@ Default backend: `http://localhost:8787`. The extension must make this configura
 
 Target a 20 second backend deadline, including queue time, and a 25 second extension timeout. The backend defaults to two concurrent unique checks and up to 16 queued unique checks per worker. Simultaneous requests with identical substantive listing fields share one verification, but each response echoes its caller's listingId. Shared in-flight work is not a cache hit. If capacity is full, return HTTP 200 with Uncertain, unknown link state, null checkedAt, and a busy explanation. Do not cache busy or timed out results. No automatic retry loops.
 
+The extension keeps a successful result for a rendered search card by `listingId` for the agreed 30-minute lifetime. When the user opens that resource's detail page, it reuses the same result so the status and evidence remain consistent across the two views.
+
 ## Request
 
 ```json
