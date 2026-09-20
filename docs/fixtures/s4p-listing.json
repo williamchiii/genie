@@ -1,8 +1,8 @@
 {
-  "listingName": "S4P Synergy, Inc.",
-  "listingUrl": null,
-  "websiteUrl": "https://www.strivinghome.org/synergy/home-synergy",
+  "listingId": "s4p-synergy-demo",
+  "name": "S4P Synergy, Inc.",
+  "website": "https://www.strivinghome.org/synergy/home-synergy",
   "address": null,
   "phone": null,
-  "services": []
+  "serviceType": null
 }

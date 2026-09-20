@@ -1,31 +1,11 @@
 {
-  "status": "broken_link_service_likely_active",
-  "confidence": "medium",
-  "originalLinkResult": {
-    "outcome": "http_error",
-    "httpStatus": 404,
-    "finalUrl": "https://www.strivinghome.org/synergy/home-synergy",
-    "checkedAt": null
-  },
-  "suggestedUrl": "https://www.strivinghome.org/departments/synergy",
-  "summary": "Demo assessment from project context: the listed website returned 404, and a replacement Synergy page was identified. Confirm current service details and corroborating sources before publishing an update.",
-  "evidence": [
-    {
-      "id": "synergy-official",
-      "title": "Synergy department page",
-      "url": "https://www.strivinghome.org/departments/synergy",
-      "sourceType": "official_website",
-      "finding": "Project context identifies this as the replacement Synergy page. This fixture has not fetched or verified its current contents.",
-      "checkedAt": null
-    }
-  ],
-  "fieldsToUpdate": [
-    {
-      "field": "websiteUrl",
-      "currentValue": "https://www.strivinghome.org/synergy/home-synergy",
-      "suggestedValue": "https://www.strivinghome.org/departments/synergy",
-      "evidenceIds": ["synergy-official"]
-    }
-  ],
-  "reviewNote": "Demo data — not a live check. A broken website does not mean the service is closed. Confirm that the replacement page matches this listing and verify current service information before publishing any changes."
+  "listingId": "s4p-synergy-demo",
+  "mode": "mock",
+  "status": "uncertain",
+  "reason": "Mock data from project notes. The listed website was reported broken and a possible replacement page was identified, but neither link nor current service activity has been verified.",
+  "checkedAt": null,
+  "linkState": "unknown",
+  "replacementUrl": null,
+  "sources": [],
+  "cached": false
 }

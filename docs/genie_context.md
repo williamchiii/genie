@@ -1,12 +1,12 @@
 # Genie
 
-Implementation handoff: [team tasks and role split](team_tasks.md), [proposed API contract](review_api_contract.md), and [S4P fixtures](fixtures/s4p-listing.json).
+Implementation handoff: [backend role](backend.md), [extension UI role](extension_ui.md), [integration contract](integration_contract.md), and [mock fixture notes](fixtures/README.md).
 
 ## Goal
 
 Build a competitive, working demo for the CityCamp Gainesville Hack Day General Civic Tech track. Submission is due September 20, 2026 at 5 PM. The team has two people, a Gemini API key, and a preference for no spending.
 
-Genie is a Chrome extension for general users of the Florida Community Resource Map. It automatically checks public listings rendered on the user's current page and displays a service status beside each listing. When evidence supports a replacement for a broken website, Genie provides that link.
+Genie is a Chrome extension for general users of the Florida Community Resource Map. It automatically checks public listings rendered on the user's current page and displays a service status beside each listing. When evidence verifies a replacement for a broken or demonstrably stale website, Genie updates the listing website button locally and labels it “Updated link by Genie”. Users can inspect the original URL and sources and restore the original link.
 
 The team is independent of Florida Community Innovation (FCI). Do not imply a partnership, private data access, or endorsement. The extension annotates the user's browser view and does not edit FCI records.
 
