@@ -47,6 +47,8 @@ interface SearchApiResult {
 }
 
 const SPARKLE_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="#5B3FD9" stroke="none"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2z"></path></svg>`;
+const WARNING_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9A6A0F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"></path><line x1="12" y1="9" x2="12" y2="13"></line><circle cx="12" cy="16.5" r="0.6" fill="#9A6A0F" stroke="none"></circle></svg>`;
+const CHECK_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1B8A5A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -110,12 +112,6 @@ function requestCheck(listing: Listing): Promise<CheckReply> {
   });
 }
 
-function formatTime(value: string | null): string {
-  if (!value) return "Not checked";
-  const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? "Not checked" : date.toLocaleString();
-}
-
 // Matches the integration contract's indicator rules: red is reserved for
 // Confirmed closed and must never be inferred from link health alone.
 function badgeColor(state: "checking" | CheckReply): "gray" | "green" | "purple" | "yellow" | "red" {
@@ -135,6 +131,9 @@ function badgeLabel(state: "checking" | CheckReply): string {
   if (result.status === "closed") return "Confirmed closed";
   if (result.status === "active" && result.replacementUrl) return "Updated link by Genie";
   if (result.status === "active") return "Active";
+  // The backend doesn't return a structured mismatch reason, only free text,
+  // so this is a best-effort label, not a claim the backend guarantees.
+  if (/\baddress\b/i.test(result.reason)) return "Check address";
   return "Uncertain";
 }
 
@@ -148,10 +147,9 @@ function renderBadge(state: "checking" | CheckReply, inset?: { top: string; righ
     .dot { width:6px; height:6px; border-radius:50%; flex:none; }
     .dot.gray { background:#94a3b8; }
     .dot.green { background:#1b8a5a; }
-    .dot.yellow { background:#b7791f; }
     .dot.red { background:#c9202b; }
-    .sparkle { width:16px; height:16px; display:inline-flex; flex:none; }
-    .sparkle svg { display:block; }
+    .icon { width:16px; height:16px; display:inline-flex; flex:none; }
+    .icon svg { display:block; }
     .label.gray { color:#475569; }
     .label.green { color:#1b8a5a; }
     .label.purple { color:#6941e8; }
@@ -164,11 +162,13 @@ function renderBadge(state: "checking" | CheckReply, inset?: { top: string; righ
     host.style.fontFamily = inset.fontFamily;
   }
   const color = badgeColor(state);
+  const icons: Partial<Record<typeof color, string>> = { purple: SPARKLE_SVG, yellow: WARNING_SVG, green: CHECK_SVG };
   const dot = element("span");
   dot.setAttribute("aria-hidden", "true");
-  if (color === "purple") {
-    dot.className = "sparkle";
-    dot.innerHTML = SPARKLE_SVG;
+  const icon = icons[color];
+  if (icon) {
+    dot.className = "icon";
+    dot.innerHTML = icon;
   } else {
     dot.className = `dot ${color}`;
   }
@@ -178,59 +178,14 @@ function renderBadge(state: "checking" | CheckReply, inset?: { top: string; righ
   return host;
 }
 
-function renderDetails(listing: Listing, result: CheckResult): HTMLElement {
-  const host = element("div");
-  host.setAttribute(badgeMark, "details");
-  const root = host.attachShadow({ mode: "open" });
-  root.append(element("style", `
-    :host { display:block; margin-top:4px; font:12px/1.5 system-ui,sans-serif; color:#334155; }
-    details { margin:0; } summary { cursor:pointer; color:#334155; }
-    p { margin:3px 0; } a { color:#1d4ed8; }
-    ul { margin:4px 0; padding-left:18px; } .source-title { font-weight:600; }
-    blockquote { margin:2px 0 6px; padding-left:8px; border-left:2px solid #cbd5e1; color:#475569; }
-  `));
-  const details = element("details");
-  details.append(element("summary", "Genie details"));
-  details.append(element("p", result.reason));
-  details.append(element("p", `Original link: ${result.linkState}`));
-  details.append(element("p", `Checked: ${formatTime(result.checkedAt)}`));
-  if (listing.website) {
-    const link = element("a", "Open original website");
-    link.href = listing.website;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    details.append(link);
-  }
-  if (result.sources.length) {
-    const list = element("ul");
-    for (const source of result.sources) {
-      const item = element("li");
-      const sourceLink = element("a", source.title);
-      sourceLink.href = source.url;
-      sourceLink.target = "_blank";
-      sourceLink.rel = "noopener noreferrer";
-      sourceLink.className = "source-title";
-      item.append(sourceLink, element("blockquote", source.excerpt));
-      list.append(item);
-    }
-    details.append(element("p", "Sources:"), list);
-  }
-  root.append(details);
-  return host;
-}
-
 function clearCard(card: Element) {
   card.querySelectorAll(`[${badgeMark}]`).forEach(node => node.remove());
-}
-
-function titleRow(card: Element): Element | null {
-  return card.querySelector(".card__header") ?? card.querySelector(".card_left")?.firstElementChild ?? null;
 }
 
 const completed = new Map<string, CheckReply>();
 const requested = new Set<string>();
 
-function paint(card: Element, listing: Listing, state: "checking" | CheckReply) {
+function paint(card: Element, state: "checking" | CheckReply) {
   clearCard(card);
   let inset: { top: string; right: string; fontFamily: string } | undefined;
   if (card instanceof HTMLElement) {
@@ -240,20 +195,16 @@ function paint(card: Element, listing: Listing, state: "checking" | CheckReply) 
   }
   const badge = renderBadge(state, inset);
   card.prepend(badge);
-  if (state !== "checking" && state.ok) {
-    const details = renderDetails(listing, state.result);
-    titleRow(card)?.after(details);
-  }
 }
 
 async function process(card: Element, listing: Listing) {
   const key = keyFor(listing);
   const prior = completed.get(key);
   if (prior) {
-    paint(card, listing, prior);
+    paint(card, prior);
     return;
   }
-  paint(card, listing, "checking");
+  paint(card, "checking");
   if (requested.has(key)) return;
   requested.add(key);
   const reply = await requestCheck(listing);
@@ -261,7 +212,7 @@ async function process(card: Element, listing: Listing) {
   requested.delete(key);
   // The card may have re-rendered (pagination, filter change) while the check ran.
   const stillPresent = document.contains(card);
-  if (stillPresent) paint(card, listing, reply);
+  if (stillPresent) paint(card, reply);
 }
 
 let latestResults: SearchApiResult[] = [];
